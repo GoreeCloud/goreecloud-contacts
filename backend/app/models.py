@@ -1,6 +1,7 @@
 from datetime import datetime
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -87,6 +88,26 @@ class ContactWriteRequest(BaseModel):
     categories: list[str] = Field(default_factory=list, max_length=100)
     favorite: bool = False
     photo: str | None = Field(default=None, max_length=2_000_000)
+
+    @field_validator("photo")
+    @classmethod
+    def validate_photo_reference(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            return None
+
+        parsed = urlparse(normalized)
+        if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                "Phase 4A photo writes require an HTTP(S) URI reference. Embedded data "
+                "URIs are not accepted because the current Radicale/vobject storage path "
+                "does not preserve them losslessly."
+            )
+
+        return normalized
 
 
 class ContactDeleteResponse(BaseModel):
