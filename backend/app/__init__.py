@@ -1,0 +1,1 @@
+"""GoreeCloud Contacts backend application."""
