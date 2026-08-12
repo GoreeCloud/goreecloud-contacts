@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and automated validation completed on August 12, 2026. Live API write validation against the isolated Radicale test address book also completed successfully. Browser create validation succeeded, but browser edit validation exposed a CardDAV transport failure that must be diagnosed before merge.
+Implementation and automated validation completed on August 12, 2026. Live API write validation against the isolated Radicale test address book completed successfully. Browser create and edit validation have now succeeded after diagnosing an earlier transient CardDAV transport failure. Browser delete validation remains required before merge.
 
 ## Purpose
 
@@ -110,12 +110,15 @@ Observed results:
 1. The React interface loaded successfully with the backend online and displayed `Conditional writes enabled`.
 2. The address book contained only the existing `Jordan Example` synthetic fixture before the browser write test.
 3. Creating `Browser Milestone Two Test` succeeded. The contact count increased from one to two and the new contact appeared with the expected email address and phone number.
-4. Editing that browser-created contact to `Browser Milestone Two Updated` did not complete. The editor displayed `Unable to reach the configured CardDAV server.` and the visible contact row remained at its original values.
-5. Because the update path performs network work before and after the conditional PUT, the server-side state must be checked before retrying the save. A transport failure after a successful PUT could leave the browser with stale display state even though the CardDAV resource changed.
-6. The screenshots also exposed a presentation defect in the four-column contact table: the Actions heading and Edit control wrapped into an implicit second grid row because the base three-column rule overrode the Milestone 2 four-column rule. The branch was updated to give the Milestone 2 table rule sufficient specificity so the action column remains in the intended fourth column.
+4. The first browser edit attempt returned `Unable to reach the configured CardDAV server.` The server-side state was checked before retrying and confirmed that the original contact values and original ETag remained intact, so the failed attempt did not modify Radicale.
+5. A direct stability probe then read the exact browser-created vCard resource ten consecutive times through the backend CardDAV client. All ten reads succeeded and returned the same ETag, providing no evidence of a persistent DNS, TLS, NetBird, or direct-resource-read failure.
+6. The frontend and backend development servers were restarted and verified independently. The frontend returned HTTP `200`, and `/api/carddav/status` again returned `configured: true`, `read_only: false`, and `write_enabled: true`.
+7. Retrying the browser edit succeeded. The visible row changed to `Browser Milestone Two Updated`, the first displayed email changed to `browser-m2-updated@example.test`, and the first displayed phone changed to `+1-555-0131`.
+8. The existing `Jordan Example` fixture remained present and unchanged after the successful browser edit.
+9. The four-column contact table fix also validated visually: Name, Email, Phone, and Actions remained aligned in a single grid row and the Edit buttons appeared in the intended Actions column.
 
-Browser delete validation remains pending until the update transport failure is diagnosed and the actual CardDAV state of the browser-created contact is confirmed.
+Browser delete validation remains pending. The next browser step is to delete only `Browser Milestone Two Updated` through the confirmation flow, confirm the contact count returns to one, and confirm `Jordan Example` remains intact.
 
 ## Merge Gate
 
-I will not merge Milestone 2 until the browser edit transport failure is understood, browser create/edit/delete validation passes against the isolated test address book, automated CI passes after any required fixes, and the local write gate is disabled again after validation unless continued write development is required.
+I will not merge Milestone 2 until browser delete validation passes against the isolated test address book, automated CI passes after the latest documentation and layout changes, and the local write gate is disabled again after validation unless continued write development is required.
