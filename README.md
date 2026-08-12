@@ -4,11 +4,11 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Active development — Milestone 3 authentication and multi-user isolation
+**Status:** Active development — Milestone 3 authentication and multi-user isolation complete
 
-Milestones 1 and 2 are complete on `main`. GoreeCloud Contacts can discover Radicale address books, list and search contacts, and perform guarded create, update, and delete operations with ETag-based conflict protection.
+Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
 
-Milestone 3 is currently under development in a draft pull request. Its purpose is to replace the previous single application-wide CardDAV identity with per-user Radicale authentication, opaque server-side sessions, and strict application-level address-book isolation before any production family contact data is used.
+Milestone 3 adds per-user Radicale authentication, opaque server-side sessions, strict application-level address-book isolation, logout/session-expiration behavior, and live negative two-user authorization validation. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
 
 ## Role
 
@@ -104,18 +104,23 @@ goreecloud-contacts/
 - Validated create, update, stale-ETag conflict, and delete behavior with isolated synthetic data.
 - Restored `CARDDAV_WRITE_ENABLED=false` after validation.
 
-### Milestone 3 — Authentication and Multi-User Isolation — In Progress
+### Milestone 3 — Authentication and Multi-User Isolation — Complete
 
-- Replace the single application-wide CardDAV identity with per-user Radicale sign-in.
-- Validate user credentials through CardDAV discovery.
-- Use opaque HTTP-only server-side sessions.
-- Keep CardDAV passwords out of browser-readable storage and source control.
-- Require authentication for CardDAV application routes.
-- Construct CardDAV clients from the authenticated session user's credentials.
-- Restrict address-book access to collections discovered for the signed-in user.
-- Restrict contact-resource access to `.vcf` resources beneath those authorized collections.
-- Preserve the Milestone 2 write gate and ETag protections.
-- Validate login, logout, session expiration, and negative two-user isolation with non-production Radicale accounts before merge.
+- Replaced the single application-wide CardDAV identity with per-user Radicale sign-in.
+- Validated user credentials through CardDAV discovery.
+- Added opaque HTTP-only server-side sessions.
+- Kept CardDAV passwords out of browser-readable storage and source control.
+- Required authentication for CardDAV application routes.
+- Constructed CardDAV clients from the authenticated session user's credentials.
+- Restricted address-book access to collections discovered for the signed-in user.
+- Restricted contact-resource access to `.vcf` resources beneath those authorized collections.
+- Preserved the Milestone 2 write gate and ETag protections.
+- Added explicit logout and session-expiration handling.
+- Added credential-safe live validation for authenticated CardDAV behavior.
+- Validated a retained synthetic primary fixture through `goreecloud-contacts-test`.
+- Validated negative two-user isolation with `goreecloud-contacts-isolation-test`; the second user cannot discover the primary test address book and receives HTTP 403 when explicitly selecting it.
+- Validated session expiration with a temporary five-second TTL and restored the normal 28,800-second development TTL afterward.
+- Confirmed `CARDDAV_WRITE_ENABLED=false` remained the live safety state throughout authentication validation.
 
 ### Milestone 4 — Expanded Contact Model and Product Workflows
 
