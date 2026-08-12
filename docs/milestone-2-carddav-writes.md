@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and automated validation completed on August 12, 2026. Live API write validation against the isolated Radicale test address book completed successfully. Browser create and edit validation have now succeeded after diagnosing an earlier transient CardDAV transport failure. Browser delete validation remains required before merge.
+Implementation, automated validation, live API write validation, and browser create/edit/delete validation all completed successfully on August 12, 2026 against the isolated Radicale test environment. The remaining pre-merge step is to disable the local write gate again and confirm final CI/PR state.
 
 ## Purpose
 
@@ -68,7 +68,7 @@ Validation results:
 - npm reported zero vulnerabilities for the installed frontend dependency set at validation time.
 - Frontend lint completed with zero warnings and zero errors.
 - Frontend TypeScript and Vite production build completed successfully.
-- GitHub Actions continuous integration completed successfully for draft PR #4.
+- GitHub Actions continuous integration completed successfully for draft PR #4 before the final browser-validation documentation update.
 
 The automated test suite verifies:
 
@@ -103,7 +103,7 @@ No production family contact collection was used for Milestone 2 validation.
 
 ## Browser Validation
 
-Browser validation began on August 12, 2026 against only the isolated `GoreeCloud Contacts Test` address book.
+I completed browser validation on August 12, 2026 against only the isolated `GoreeCloud Contacts Test` address book.
 
 Observed results:
 
@@ -113,12 +113,14 @@ Observed results:
 4. The first browser edit attempt returned `Unable to reach the configured CardDAV server.` The server-side state was checked before retrying and confirmed that the original contact values and original ETag remained intact, so the failed attempt did not modify Radicale.
 5. A direct stability probe then read the exact browser-created vCard resource ten consecutive times through the backend CardDAV client. All ten reads succeeded and returned the same ETag, providing no evidence of a persistent DNS, TLS, NetBird, or direct-resource-read failure.
 6. The frontend and backend development servers were restarted and verified independently. The frontend returned HTTP `200`, and `/api/carddav/status` again returned `configured: true`, `read_only: false`, and `write_enabled: true`.
-7. Retrying the browser edit succeeded. The visible row changed to `Browser Milestone Two Updated`, the first displayed email changed to `browser-m2-updated@example.test`, and the first displayed phone changed to `+1-555-0131`.
-8. The existing `Jordan Example` fixture remained present and unchanged after the successful browser edit.
-9. The four-column contact table fix also validated visually: Name, Email, Phone, and Actions remained aligned in a single grid row and the Edit buttons appeared in the intended Actions column.
+7. Retrying the browser edit succeeded. The browser changed the contact to `Browser Milestone Two Updated`, and the backend logged HTTP `200` for the conditional PUT followed by HTTP `200` for the refreshed contact-list read.
+8. The updated row displayed `browser-m2-updated@example.test` and `+1-555-0131`, confirming the browser refreshed from the successful server-side update.
+9. The four-column contact table fix validated visually: Name, Email, Phone, and Actions remained aligned in one grid row and Edit controls stayed in the intended Actions column.
+10. Deleting `Browser Milestone Two Updated` through the browser confirmation flow succeeded. The backend logged HTTP `200` for the ETag-protected DELETE followed by HTTP `200` for the final contact-list refresh.
+11. The browser contact count returned from two to one, the browser-created test contact disappeared, and `Jordan Example` remained present with `jordan@example.test` and `+1-555-0100`.
 
-Browser delete validation remains pending. The next browser step is to delete only `Browser Milestone Two Updated` through the confirmation flow, confirm the contact count returns to one, and confirm `Jordan Example` remains intact.
+The browser create → edit → delete flow therefore passed, including UI refresh after writes and preservation of the existing synthetic fixture.
 
 ## Merge Gate
 
-I will not merge Milestone 2 until browser delete validation passes against the isolated test address book, automated CI passes after the latest documentation and layout changes, and the local write gate is disabled again after validation unless continued write development is required.
+The functional Milestone 2 merge gates have passed: automated tests, isolated live API create/update/conflict/delete validation, and isolated browser create/edit/delete validation. Before merging, I will disable the local write gate again, verify the application returns to read-only safety mode, and confirm final GitHub Actions/PR status after this documentation update.
