@@ -10,11 +10,11 @@ class Settings(BaseSettings):
     app_env: str = "development"
     frontend_origin: str = "http://localhost:5173"
     carddav_base_url: str = ""
-    carddav_addressbook_home_url: str = ""
-    carddav_username: str = ""
-    carddav_password: str = ""
     carddav_timeout_seconds: float = 15.0
     carddav_write_enabled: bool = False
+    session_ttl_seconds: int = 28_800
+    session_cookie_name: str = "goreecloud_contacts_session"
+    session_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(
         env_file=_ROOT_ENV,
@@ -25,11 +25,7 @@ class Settings(BaseSettings):
 
     @property
     def carddav_configured(self) -> bool:
-        return bool(
-            self.carddav_base_url.strip()
-            and self.carddav_username
-            and self.carddav_password
-        )
+        return bool(self.carddav_base_url.strip())
 
 
 def get_settings() -> Settings:
