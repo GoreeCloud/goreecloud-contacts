@@ -2,7 +2,7 @@
 
 ## Purpose
 
-I use this document to define the initial application architecture for GoreeCloud Contacts.
+I use this document to define the application architecture for GoreeCloud Contacts.
 
 ## Governing Decision
 
@@ -13,6 +13,7 @@ Radicale remains the authoritative CardDAV service for contact data. GoreeCloud 
 ```text
 Approved browser
     |
+    | HTTPS / application session
     v
 Caddy HTTPS
     |
@@ -20,23 +21,27 @@ Caddy HTTPS
 GoreeCloud Contacts
     |
     +-- Frontend
+    |     - Radicale sign-in
     |     - contact list
-    |     - contact details
-    |     - editor
-    |     - search and filters
+    |     - contact editor
+    |     - local search
+    |     - address-book selection
     |
     +-- Backend
-          - authentication/session handling
-          - authorization
+          - Radicale-backed authentication
+          - opaque server-side sessions
+          - per-user authorization
           - CardDAV client
           - vCard parsing and serialization
-          - conflict handling
+          - ETag conflict handling
           - application API
     |
+    | CardDAV using the signed-in user's credentials
     v
 Radicale
     |
-    +-- user address books
+    +-- per-user address-book homes
+    +-- authorized address books
     +-- vCard resources
     |
     v
@@ -47,14 +52,44 @@ DAVx5 / other standards-compliant CardDAV clients
 
 Ordinary contact fields belong in vCard resources stored by Radicale. This includes names, phone numbers, email addresses, organizations, postal addresses, birthdays, websites, notes, categories, photos, and other supported vCard properties.
 
-The application may later maintain limited non-contact state such as UI preferences or session records, but application-specific storage must not become a competing source of truth for contact information.
+GoreeCloud Contacts may maintain application-specific state such as authenticated sessions or future UI preferences, but application-specific storage must not become a competing source of truth for contact information.
 
-## Multi-User Boundary
+## Authentication Model
 
-Each user must access only the CardDAV collections authorized to that user. The application must not depend on one broad service credential that can read every user's private contacts.
+GoreeCloud Contacts does not use one broad CardDAV service credential for interactive user access.
+
+Each user signs in with an approved Radicale/CardDAV username and password. The backend validates the credentials through CardDAV principal and address-book discovery. A successful login creates a random opaque application session token.
+
+The browser receives only the opaque token in an HTTP-only cookie. The CardDAV password remains in backend process memory for the lifetime of the session because the backend must authenticate subsequent CardDAV requests as that user.
+
+The current session store is process-local. A backend restart invalidates all sessions, and multiple backend workers do not share session state. This limitation must be reviewed before production deployment.
+
+## Multi-User Authorization Boundary
+
+Every protected CardDAV request is executed with the authenticated session user's credentials.
+
+The backend independently verifies application-level scope in addition to Radicale permissions:
+
+- requested address books must exactly match collections discovered for the authenticated user's CardDAV principal;
+- requested contact resources must be `.vcf` files beneath one of those discovered address books;
+- CardDAV targets must remain on the configured CardDAV server origin;
+- decoded and normalized resource paths are checked before authorization decisions.
+
+The browser therefore cannot use GoreeCloud Contacts to select an arbitrary same-origin CardDAV collection simply by changing an href parameter.
+
+## Write Integrity Boundary
+
+Create, update, and delete operations remain protected by the Milestone 2 conditional-write model.
+
+- Create uses `If-None-Match: *`.
+- Update and delete use `If-Match` with the current ETag.
+- CardDAV HTTP 412 becomes application HTTP 409.
+- `CARDDAV_WRITE_ENABLED` remains disabled by default.
+
+Per-user authentication does not bypass these controls.
 
 ## Deployment Boundary
 
-Development and testing are separate from production. Initial CardDAV work must use controlled test accounts, test address books, and test contacts whenever practical.
+Development and testing remain separate from production. CardDAV validation must use controlled test accounts, test address books, and synthetic contacts whenever practical.
 
-Production publication is blocked until authentication, authorization, backup, restoration, private-network access, Caddy routing, and rollback behavior are validated.
+Production publication is blocked until authentication, authorization, multi-user isolation, session protection, backup, restoration, private-network access, Caddy routing, monitoring, and rollback behavior are validated.
