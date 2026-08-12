@@ -1,4 +1,7 @@
-from app.models import PostalAddress, StructuredName
+import pytest
+from pydantic import ValidationError
+
+from app.models import ContactWriteRequest, PostalAddress, StructuredName
 from app.vcard import build_vcard, parse_vcard
 
 
@@ -99,6 +102,23 @@ END:VCARD
     assert contact.photo == "data:image/png;base64,AAAA"
 
 
+def test_contact_write_accepts_https_photo_reference() -> None:
+    request = ContactWriteRequest(
+        formatted_name="Photo Reference Example",
+        photo="  https://example.test/contact-photo.png  ",
+    )
+
+    assert request.photo == "https://example.test/contact-photo.png"
+
+
+def test_contact_write_rejects_embedded_photo_data_uri() -> None:
+    with pytest.raises(ValidationError, match="HTTP\(S\) URI reference"):
+        ContactWriteRequest(
+            formatted_name="Embedded Photo Example",
+            photo="data:image/png;base64,AAAA",
+        )
+
+
 def test_structured_name_falls_back_when_fn_is_missing() -> None:
     raw = """BEGIN:VCARD
 VERSION:4.0
@@ -144,7 +164,7 @@ def test_build_vcard_round_trip() -> None:
         note="Synthetic note, with punctuation; and a second line\nfor testing.",
         categories=["Family", "Test,Group"],
         favorite=True,
-        photo="data:image/png;base64,BBBB",
+        photo="https://example.test/taylor-photo.png",
     )
 
     assert "\r\n" in raw
@@ -152,6 +172,7 @@ def test_build_vcard_round_trip() -> None:
     assert "N:Example;Taylor;;Mx.;" in raw
     assert "ADR;TYPE=home:;;456 Example Ave;Montgomery;AL;36104;USA" in raw
     assert "X-GOREECLOUD-FAVORITE:TRUE" in raw
+    assert "PHOTO;VALUE=uri:https://example.test/taylor-photo.png" in raw
 
     contact = parse_vcard(
         raw,
@@ -174,3 +195,4 @@ def test_build_vcard_round_trip() -> None:
     assert contact.categories == ["Family", "Test,Group"]
     assert contact.favorite is True
     assert contact.has_photo is True
+    assert contact.photo == "https://example.test/taylor-photo.png"
