@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and automated validation completed on August 12, 2026. Live API write validation against the isolated Radicale test address book also completed successfully. Browser-based create, edit, and delete validation remains required before merge.
+Implementation and automated validation completed on August 12, 2026. Live API write validation against the isolated Radicale test address book also completed successfully. Browser create validation succeeded, but browser edit validation exposed a CardDAV transport failure that must be diagnosed before merge.
 
 ## Purpose
 
@@ -101,18 +101,21 @@ The live API validation therefore passed the complete create → update → stal
 
 No production family contact collection was used for Milestone 2 validation.
 
-## Remaining Browser Validation
+## Browser Validation
 
-Before merge, I will validate the React interface against the same isolated test address book by:
+Browser validation began on August 12, 2026 against only the isolated `GoreeCloud Contacts Test` address book.
 
-1. Confirming the interface displays `Conditional writes enabled` while the local write gate is active.
-2. Creating a synthetic browser test contact.
-3. Editing the browser-created contact and confirming the refreshed contact list shows the updated values.
-4. Deleting the browser-created contact through the confirmation flow.
-5. Confirming the contact disappears after deletion and `Jordan Example` remains intact.
-6. Re-running automated validation if any source code changes are required as a result of browser testing.
-7. Disabling the local write gate again after Milestone 2 validation unless continued write development is required.
+Observed results:
+
+1. The React interface loaded successfully with the backend online and displayed `Conditional writes enabled`.
+2. The address book contained only the existing `Jordan Example` synthetic fixture before the browser write test.
+3. Creating `Browser Milestone Two Test` succeeded. The contact count increased from one to two and the new contact appeared with the expected email address and phone number.
+4. Editing that browser-created contact to `Browser Milestone Two Updated` did not complete. The editor displayed `Unable to reach the configured CardDAV server.` and the visible contact row remained at its original values.
+5. Because the update path performs network work before and after the conditional PUT, the server-side state must be checked before retrying the save. A transport failure after a successful PUT could leave the browser with stale display state even though the CardDAV resource changed.
+6. The screenshots also exposed a presentation defect in the four-column contact table: the Actions heading and Edit control wrapped into an implicit second grid row because the base three-column rule overrode the Milestone 2 four-column rule. The branch was updated to give the Milestone 2 table rule sufficient specificity so the action column remains in the intended fourth column.
+
+Browser delete validation remains pending until the update transport failure is diagnosed and the actual CardDAV state of the browser-created contact is confirmed.
 
 ## Merge Gate
 
-I will not merge Milestone 2 until automated CI passes, the conditional write behavior has been validated against the isolated Radicale test environment, and the browser create/edit/delete flow has been verified successfully.
+I will not merge Milestone 2 until the browser edit transport failure is understood, browser create/edit/delete validation passes against the isolated test address book, automated CI passes after any required fixes, and the local write gate is disabled again after validation unless continued write development is required.
