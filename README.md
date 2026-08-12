@@ -4,9 +4,11 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Initial development
+**Status:** Active development — Milestone 3 authentication and multi-user isolation
 
-The current development objective is to prove the complete CardDAV data path before adding the full contact-management interface.
+Milestones 1 and 2 are complete on `main`. GoreeCloud Contacts can discover Radicale address books, list and search contacts, and perform guarded create, update, and delete operations with ETag-based conflict protection.
+
+Milestone 3 is currently under development in a draft pull request. Its purpose is to replace the previous single application-wide CardDAV identity with per-user Radicale authentication, opaque server-side sessions, and strict application-level address-book isolation before any production family contact data is used.
 
 ## Role
 
@@ -14,15 +16,16 @@ I will use GoreeCloud Contacts to provide a modern browser-based interface for m
 
 ## Architecture
 
-The planned application model is:
+The application model is:
 
 ```text
-Browser
+Approved browser
   |
+  | HTTPS / opaque application session
   v
 GoreeCloud Contacts
   |
-  | CardDAV
+  | CardDAV using the signed-in user's credentials
   v
 Radicale
   |
@@ -34,21 +37,25 @@ DAVx5
 Android Contacts Provider
 ```
 
-Radicale remains the authoritative CardDAV service. GoreeCloud Contacts will not create a competing contact database for ordinary contact data.
+Radicale remains the authoritative CardDAV service. GoreeCloud Contacts does not create a competing contact database for ordinary contact data.
 
-## Initial Technology Direction
+Each user authenticates with an approved Radicale/CardDAV identity. The backend performs CardDAV operations as that user and independently restricts requested address books and contact resources to collections discovered for the authenticated session.
 
-- Frontend: React + TypeScript
+## Technology Direction
+
+- Frontend: React + TypeScript + Vite
 - Backend: Python + FastAPI
 - Contact protocol: CardDAV
 - Contact format: vCard
 - Authoritative contact service: Radicale
 - Android synchronization: DAVx5
+- Application authentication: Radicale-backed per-user sign-in
+- Application sessions: opaque server-side sessions
 - Deployment: Docker and Docker Compose
 - Reverse proxy: Caddy
 - Development platform: GitHub
 
-Technology selections remain subject to implementation validation before the first production release.
+Technology selections remain subject to implementation and production-readiness validation.
 
 ## Repository Structure
 
@@ -62,7 +69,11 @@ goreecloud-contacts/
 │   ├── architecture.md
 │   ├── carddav.md
 │   ├── development.md
-│   └── security.md
+│   ├── security.md
+│   ├── milestone-1-carddav-poc.md
+│   ├── milestone-2-carddav-writes.md
+│   └── milestone-3-authentication-isolation.md
+├── .github/workflows/ci.yml
 ├── .env.example
 ├── .gitignore
 ├── LICENSE
@@ -71,49 +82,71 @@ goreecloud-contacts/
 
 ## Development Milestones
 
-### Milestone 1 — CardDAV Proof of Concept
+### Milestone 1 — Read-Only CardDAV Proof of Concept — Complete
 
-- Authenticate to an approved Radicale test account.
-- Discover address books through CardDAV.
-- Retrieve contacts without modifying production data.
-- Parse vCard contact records.
-- Render a basic contact list.
-- Verify that changes made through a controlled test path remain compatible with DAVx5.
+- Implemented the React/TypeScript frontend and FastAPI backend foundation.
+- Authenticated to an isolated Radicale test account through protected local configuration.
+- Discovered CardDAV principals, address-book homes, and address books.
+- Retrieved synthetic contacts and preserved resource hrefs and ETags.
+- Parsed common vCard fields.
+- Rendered a responsive browser contact list with local search.
+- Added dependency locking and GitHub Actions continuous integration.
+- Validated the complete browser-to-Radicale read path without production family contact data.
 
-### Milestone 2 — Core Contact Management
+### Milestone 2 — Conditional CardDAV Writes — Complete
 
-- Create contacts.
-- Edit contacts.
-- Delete contacts.
-- Search and filter contacts.
-- Support multiple address books.
-- Support common vCard fields and contact photos.
+- Added controlled contact creation using `If-None-Match: *`.
+- Added ETag-protected contact updates and deletes using `If-Match`.
+- Converted stale CardDAV precondition failures into application conflicts instead of blind overwrites.
+- Added guarded browser create, edit, and delete controls.
+- Preserved contact UIDs during updates.
+- Added vCard serialization for formatted name, multiple email addresses, and multiple phone numbers.
+- Validated create, update, stale-ETag conflict, and delete behavior with isolated synthetic data.
+- Restored `CARDDAV_WRITE_ENABLED=false` after validation.
 
-### Milestone 3 — GoreeCloud Product Interface
+### Milestone 3 — Authentication and Multi-User Isolation — In Progress
 
-- Responsive GoreeCloud user interface.
-- Favorites and categories.
-- VCF import and export.
-- Duplicate detection and merge workflows.
-- Multi-user access boundaries.
-- Dark mode and accessibility improvements.
+- Replace the single application-wide CardDAV identity with per-user Radicale sign-in.
+- Validate user credentials through CardDAV discovery.
+- Use opaque HTTP-only server-side sessions.
+- Keep CardDAV passwords out of browser-readable storage and source control.
+- Require authentication for CardDAV application routes.
+- Construct CardDAV clients from the authenticated session user's credentials.
+- Restrict address-book access to collections discovered for the signed-in user.
+- Restrict contact-resource access to `.vcf` resources beneath those authorized collections.
+- Preserve the Milestone 2 write gate and ETag protections.
+- Validate login, logout, session expiration, and negative two-user isolation with non-production Radicale accounts before merge.
 
-### Milestone 4 — Production Readiness
+### Milestone 4 — Expanded Contact Model and Product Workflows
 
-- Automated tests.
-- Container build and runtime validation.
-- Authentication and authorization testing.
-- Backup and restoration validation.
-- Caddy and private-service publication validation.
-- Monitoring integration.
-- Security review.
-- Documented rollback procedure.
+- Add broader vCard field support, including structured names, organizations, titles, postal addresses, birthdays, websites, notes, categories, and photos where supported.
+- Add favorites and category workflows.
+- Add VCF import and export.
+- Add duplicate detection and merge workflows.
+- Continue responsive, dark-mode, accessibility, and user-experience improvements.
+- Expand automated tests for the larger contact model and workflows.
+
+### Milestone 5 — Production Readiness and Deployment
+
+- Complete authentication, authorization, session, and security review.
+- Decide and validate the production session-storage model.
+- Validate CSRF protections for the final deployment architecture.
+- Build and validate the Docker deployment.
+- Validate backup and restoration requirements.
+- Publish through the approved private Caddy/DNS/NetBird service model.
+- Add monitoring and operational validation.
+- Document rollback and recovery procedures.
+- Do not use production family contacts until the required production gates are complete.
 
 ## Security Rules
 
-I will not commit passwords, active CardDAV credentials, tokens, private keys, session secrets, or other reusable credentials to this repository. Example configuration uses placeholders only.
+I will not commit passwords, active CardDAV credentials, tokens, private keys, session values, or other reusable credentials to this repository.
 
-Development must use test accounts, test address books, and non-production contact data whenever practical.
+The browser must never receive a user's CardDAV password after sign-in. The current Milestone 3 session model keeps the password only in backend process memory while the browser holds a random opaque HTTP-only session token.
+
+Authentication does not grant unrestricted CardDAV access. Every address-book and contact request must remain within the collections authorized for the signed-in user.
+
+Development and validation must use isolated test accounts, test address books, and synthetic contact data whenever practical. Production family contact data must not be used as a convenient development dataset.
 
 ## License
 
