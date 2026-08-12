@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import httpx
 
 from .config import Settings
-from .models import AddressBook, ContactSummary, ContactWriteRequest
+from .models import AddressBook, ContactDetail, ContactSummary, ContactWriteRequest
 from .vcard import build_vcard, parse_vcard
 
 
@@ -393,21 +393,40 @@ class CardDavClient:
 
         return sorted(contacts, key=lambda item: item.formatted_name.casefold())
 
-    async def _get_contact_unchecked(self, href: str) -> ContactSummary:
+    async def _get_contact_unchecked(self, href: str) -> ContactDetail:
         url = self._resolve_safe_url(href)
         response = await self._request("GET", url)
         etag = response.headers.get("etag")
         return parse_vcard(response.text, href=href, etag=etag)
 
-    async def get_contact(self, href: str) -> ContactSummary:
+    async def get_contact(self, href: str) -> ContactDetail:
         await self._authorized_contact_url(href)
         return await self._get_contact_unchecked(href)
+
+    @staticmethod
+    def _build_contact_vcard(uid: str, payload: ContactWriteRequest) -> str:
+        return build_vcard(
+            uid=uid,
+            formatted_name=payload.formatted_name,
+            structured_name=payload.structured_name,
+            emails=payload.emails,
+            phones=payload.phones,
+            organization=payload.organization,
+            title=payload.title,
+            addresses=payload.addresses,
+            birthday=payload.birthday,
+            websites=payload.websites,
+            note=payload.note,
+            categories=payload.categories,
+            favorite=payload.favorite,
+            photo=payload.photo,
+        )
 
     async def create_contact(
         self,
         address_book_href: str,
         payload: ContactWriteRequest,
-    ) -> ContactSummary:
+    ) -> ContactDetail:
         address_book_url = await self._authorized_address_book_url(address_book_href)
         uid = str(uuid4())
         resource_href = address_book_href.rstrip("/") + f"/{uid}.vcf"
@@ -419,12 +438,7 @@ class CardDavClient:
                 "CardDAV contact resolved outside the selected address book."
             )
 
-        vcard = build_vcard(
-            uid=uid,
-            formatted_name=payload.formatted_name,
-            emails=payload.emails,
-            phones=payload.phones,
-        )
+        vcard = self._build_contact_vcard(uid, payload)
         await self._request(
             "PUT",
             resource_url,
@@ -439,17 +453,12 @@ class CardDavClient:
         href: str,
         etag: str,
         payload: ContactWriteRequest,
-    ) -> ContactSummary:
+    ) -> ContactDetail:
         resource_url = await self._authorized_contact_url(href)
         normalized_etag = self._validate_etag(etag)
         current = await self._get_contact_unchecked(href)
         uid = current.uid or str(uuid4())
-        vcard = build_vcard(
-            uid=uid,
-            formatted_name=payload.formatted_name,
-            emails=payload.emails,
-            phones=payload.phones,
-        )
+        vcard = self._build_contact_vcard(uid, payload)
 
         await self._request(
             "PUT",
