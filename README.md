@@ -4,13 +4,13 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Active development — Milestone 4 expanded contact model and product workflows in progress
+**Status:** Active development — Milestone 4 Phase 4A expanded contact model implementation and live validation in progress
 
 Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
 
 Milestone 3 adds per-user Radicale authentication, opaque server-side sessions, strict application-level address-book isolation, logout/session-expiration behavior, and live negative two-user authorization validation.
 
-Milestone 4 is now active. Phase 4A expands the contact model beyond name/email/phone data and adds a dedicated detail view, favorites, broader search, expanded conditional writes, and additional vCard fields. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
+Milestone 4 Phase 4A expands the contact model with structured names, organization/title, addresses, birthdays, websites, notes, categories, favorites, photo-awareness, full contact-detail retrieval, and expanded browser workflows. Automated CI and isolated live read/detail validation have passed; controlled synthetic write validation and browser mutation validation remain pending. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
 
 ## Role
 
@@ -127,40 +127,33 @@ goreecloud-contacts/
 
 ### Milestone 4 — Expanded Contact Model and Product Workflows — In Progress
 
-#### Phase 4A — Expanded contact model — Implemented; validation pending
+#### Phase 4A — Expanded Contact Model
 
-- Added structured names with family, given, additional, prefix, and suffix components.
-- Added organization and job-title support.
-- Added multiple postal addresses and address types.
-- Added birthdays, websites, notes, categories, favorites, and photo-reference awareness.
-- Added an authenticated per-contact detail endpoint while retaining per-user authorization checks.
-- Expanded create/update serialization while preserving UID and ETag protections.
-- Added Contacts and Favorites views.
-- Expanded search to organization, title, categories, email, phone, and display name.
-- Added read-only contact-detail viewing even while writes remain disabled.
-- Added an expanded browser editor for approved write-enabled validation.
-- Prevented automatic external photo loading; only embedded `data:image/...` values are rendered automatically.
-- Added expanded vCard parser/serializer tests.
+- Added structured names, organizations, titles, postal addresses, birthdays, websites, notes, categories, favorites, and photo-awareness where supported.
+- Added a full authenticated contact-detail endpoint while preserving per-user CardDAV authorization.
+- Expanded create/update serialization while retaining UID and ETag protections.
+- Added Contacts and Favorites views, broader search, read-only detail viewing, and expanded write-enabled editor workflows.
+- Added expanded parser/serializer tests and credential-safe live read/write validation tooling.
+- Passed automated CI and isolated live read/detail validation using `goreecloud-contacts-test` with `CARDDAV_WRITE_ENABLED=false`.
+- Controlled synthetic write validation and browser mutation/favorites validation remain pending.
 
-#### Phase 4B — Portable VCF workflows — Planned
+#### Phase 4B — VCF Import and Export
 
-- Add individual and address-book VCF export.
+- Add single-contact and multi-contact/address-book export workflows.
 - Add VCF import preview and validation.
-- Require explicit address-book selection and conflict-safe import behavior.
+- Require explicit destination address-book selection and conflict-safe creation.
 
-#### Phase 4C — Duplicate detection and merge — Planned
+#### Phase 4C — Duplicate Detection and Merge
 
-- Add duplicate-candidate detection using normalized identity fields.
-- Add user-reviewed merge previews.
-- Preserve ETag protection and avoid destructive automatic merges.
+- Add duplicate candidate detection using normalized names, emails, and telephone numbers.
+- Add user-reviewed merge previews and ETag-protected merge writes.
+- Delete superseded resources only after a merged resource is confirmed written successfully.
 
-#### Phase 4D — Product and Glaze UI refinement — Planned
+#### Phase 4D — Product and Glaze UI Refinement
 
-- Continue responsive, dark-mode, accessibility, keyboard, and error-state improvements.
-- Align GoreeCloud Contacts with the Glaze UI design language.
-- Review richer photo workflows and unknown-vCard-property preservation.
-
-See `docs/milestone-4-expanded-contact-model.md` for implementation scope, compatibility boundaries, and validation gates.
+- Continue responsive, dark-mode, keyboard, accessibility, and error-state refinement.
+- Align GoreeCloud Contacts with the GoreeCloud Glaze UI design language.
+- Refine category, favorite, and photo workflows after interoperability/privacy validation.
 
 ### Milestone 5 — Production Readiness and Deployment
 
@@ -178,11 +171,9 @@ See `docs/milestone-4-expanded-contact-model.md` for implementation scope, compa
 
 I will not commit passwords, active CardDAV credentials, tokens, private keys, session values, or other reusable credentials to this repository.
 
-The browser must never receive a user's CardDAV password after sign-in. The current session model keeps the password only in backend process memory while the browser holds a random opaque HTTP-only session token.
+The browser must never receive a user's CardDAV password after sign-in. The current Milestone 3 session model keeps the password only in backend process memory while the browser holds a random opaque HTTP-only session token.
 
 Authentication does not grant unrestricted CardDAV access. Every address-book and contact request must remain within the collections authorized for the signed-in user.
-
-Milestone 4 contact-detail reads remain subject to the same per-user CardDAV authorization boundary as updates and deletes. The detail endpoint is not an arbitrary CardDAV fetch proxy.
 
 Development and validation must use isolated test accounts, test address books, and synthetic contact data whenever practical. Production family contact data must not be used as a convenient development dataset.
 
