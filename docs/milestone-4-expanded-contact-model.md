@@ -2,7 +2,7 @@
 
 ## Status
 
-**In progress — Phase 4A expanded vCard model implemented; automated and live validation pending.**
+**In progress — Phase 4A expanded vCard model implemented; automated validation and live read/detail validation passed. Live write and browser mutation validation remain pending.**
 
 Milestone 4 extends GoreeCloud Contacts beyond the Milestone 1–3 name/email/phone foundation while preserving Radicale as the authoritative CardDAV store, per-user isolation, conditional ETag writes, and the local write safety gate.
 
@@ -157,11 +157,32 @@ Before Phase 4A is considered complete:
 - Frontend lint must pass.
 - Frontend production build must pass.
 
+Exact-head GitHub Actions run #23 passed at `b49e876988519cbd762eb01963112f56dec224e5`, including backend tests, both live-helper syntax checks, frontend lint, and the production frontend build.
+
 ## Required live validation
 
 Live validation must continue to use the isolated `goreecloud-contacts-test` principal and synthetic data.
 
-The write gate should remain disabled for initial read validation. For approved write validation, enable it only temporarily and create a new synthetic Phase 4 contact containing representative expanded fields. Validate create, detail read, update, stale-ETag rejection, and delete. After validation, restore:
+### Read/detail validation — Passed
+
+On August 12, 2026, `backend/scripts/validate_milestone4_live.py --mode read` passed with `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800`.
+
+The live check confirmed:
+
+- backend health
+- CardDAV configured with the write gate safely disabled
+- Radicale-backed login for `goreecloud-contacts-test`
+- discovery of `GoreeCloud Contacts Test`
+- retention of the existing `Jordan Example` synthetic fixture
+- successful authenticated retrieval through the expanded contact-detail endpoint
+- expanded model response shapes
+- session invalidation after validation
+
+Browser validation also confirmed that the Contacts and Favorites navigation rendered, Jordan Example remained visible, the read-only safety notice remained active, and the expanded Jordan Example detail panel opened successfully while mutations remained gated.
+
+### Write validation — Pending
+
+For approved write validation, enable the write gate only temporarily and create a new synthetic Phase 4 contact containing representative expanded fields. Validate create, detail read, update, stale-ETag rejection, and delete. After validation, restore:
 
 ```text
 CARDDAV_WRITE_ENABLED=false
