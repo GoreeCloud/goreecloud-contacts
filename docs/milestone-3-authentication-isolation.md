@@ -78,16 +78,156 @@ The branch adds tests for:
 - rejection of a contact resource outside the authenticated user's discovered scope;
 - preservation of existing conditional create/update/delete behavior.
 
+## Live Validation Harness
+
+`backend/scripts/validate_milestone3_live.py` provides repeatable live API validation from the NetBird-connected development workstation. It prompts for CardDAV passwords with `getpass`; passwords are not accepted as command-line arguments, printed, or written by the script.
+
+The core validation checks:
+
+- backend health;
+- CardDAV configuration;
+- `CARDDAV_WRITE_ENABLED=false` safety state;
+- unauthenticated rejection of protected CardDAV routes;
+- live Radicale-backed login for `goreecloud-contacts-test`;
+- HTTP-only and SameSite=Strict session-cookie attributes;
+- absence of password/token fields in the authentication response;
+- discovery of `GoreeCloud Contacts Test` at `/goreecloud-contacts-test/contacts-test/`;
+- retrieval of the retained `Jordan Example` synthetic fixture and its expected UID;
+- immediate logout invalidation;
+- login for a second isolated Radicale principal named `goreecloud-contacts-isolation-test`;
+- absence of the primary user's test address book from the second user's discovery results;
+- HTTP 403 when the second user explicitly attempts to select the primary user's address book;
+- logout invalidation for the second user.
+
+The expiration validation is a separate mode so the normal development session lifetime does not need to be shortened for all tests.
+
+## Live Validation Procedure
+
+### 1. Preserve the Read-Only Test Boundary
+
+The protected local `.env` must point to the approved CardDAV endpoint and keep writes disabled:
+
+```dotenv
+CARDDAV_BASE_URL=https://calendar.goreecloud.com
+CARDDAV_WRITE_ENABLED=false
+SESSION_TTL_SECONDS=28800
+SESSION_COOKIE_SECURE=false
+FRONTEND_ORIGIN=http://localhost:5173
+```
+
+`SESSION_COOKIE_SECURE=false` is for local HTTP development only. Production HTTPS deployment must use a Secure cookie.
+
+The legacy `CARDDAV_USERNAME` and `CARDDAV_PASSWORD` values are no longer used by the Milestone 3 application path. User passwords are supplied interactively at sign-in and must remain outside source control and ordinary documentation.
+
+### 2. Create the Second Isolated Radicale Test Principal
+
+Use the preferred NetBird SSH path to `goreecloud-vps-01`. Back up the Radicale users file before changing it, then add the second test identity with the same bcrypt cost used for the existing Contacts test identity:
+
+```bash
+ssh goreecloud-vps-netbird
+stamp=$(TZ=America/Chicago date +%Y%m%d-%H%M%S-%Z)
+sudo cp -a /srv/docker/config/radicale/users "/srv/docker/config/radicale/users.bak.${stamp}"
+sudo htpasswd -B -C 12 /srv/docker/config/radicale/users goreecloud-contacts-isolation-test
+sudo stat -c '%U:%G %a %n' /srv/docker/config/radicale/users
+sudo docker ps --filter name=radicale --format 'table {{.Names}}\t{{.Status}}'
+```
+
+The password must be entered interactively and kept outside the repository and conversation. The second principal does not need an address book for the negative isolation test.
+
+Expected file state remains `debian:debian` mode `640`, and Radicale should remain healthy without requiring an account-addition restart.
+
+### 3. Synchronize the Development Laptop to the Draft PR Branch
+
+```bash
+cd ~/goreecloud-contacts
+git fetch origin
+git switch feature/milestone-3-authentication-isolation 2>/dev/null || \
+  git switch --track -c feature/milestone-3-authentication-isolation \
+  origin/feature/milestone-3-authentication-isolation
+git pull --ff-only
+```
+
+### 4. Start the Backend and Frontend
+
+Backend terminal:
+
+```bash
+cd ~/goreecloud-contacts/backend
+source .venv/bin/activate
+fastapi dev
+```
+
+Frontend terminal:
+
+```bash
+cd ~/goreecloud-contacts/frontend
+npm run dev
+```
+
+### 5. Run Core Live API Validation
+
+From another backend virtual-environment terminal:
+
+```bash
+cd ~/goreecloud-contacts/backend
+source .venv/bin/activate
+python scripts/validate_milestone3_live.py --mode core
+```
+
+Enter the stored passwords for `goreecloud-contacts-test` and `goreecloud-contacts-isolation-test` only when the non-echoing prompts appear.
+
+The run passes only if the write gate is disabled, the primary test fixture loads correctly, logout invalidates access, and the secondary principal receives HTTP 403 when it tries to select `/goreecloud-contacts-test/contacts-test/`.
+
+### 6. Perform Browser Acceptance
+
+Open `http://localhost:5173` and verify:
+
+1. CardDAV address books are not visible before authentication.
+2. Sign in as `goreecloud-contacts-test` using the stored test password.
+3. The authenticated username is shown.
+4. `GoreeCloud Contacts Test` loads.
+5. `Jordan Example` appears with the expected synthetic contact information.
+6. The application remains in read-only safety mode.
+7. Sign out.
+8. The contact data disappears and protected CardDAV data cannot be loaded without signing in again.
+
+Do not use production-family credentials or collections during this validation.
+
+### 7. Validate Session Expiration with a Temporary Short TTL
+
+Stop the backend, temporarily change the protected local `.env` to:
+
+```dotenv
+SESSION_TTL_SECONDS=5
+```
+
+Restart the backend and run:
+
+```bash
+cd ~/goreecloud-contacts/backend
+source .venv/bin/activate
+python scripts/validate_milestone3_live.py --mode expiration
+```
+
+The script logs in with the primary test principal, waits only for the short configured lifetime, verifies `/api/auth/session` returns unauthenticated state, and confirms the protected address-book route returns HTTP 401.
+
+After the expiration test, restore:
+
+```dotenv
+SESSION_TTL_SECONDS=28800
+CARDDAV_WRITE_ENABLED=false
+```
+
+Restart the backend and re-check `/api/carddav/status` before treating live validation as complete.
+
 ## Validation Still Required Before Merge
 
-- GitHub Actions backend tests must pass.
-- Frontend lint and production build must pass.
-- Live login must be tested against the isolated `goreecloud-contacts-test` Radicale principal.
-- The browser must confirm that the isolated `GoreeCloud Contacts Test` address book loads only after login.
-- Logout must remove access to CardDAV routes without restarting the backend.
-- Session expiration behavior must be validated.
-- A second isolated Radicale principal should be created or selected for a negative multi-user test proving one user cannot select another user's address book through GoreeCloud Contacts.
-- The local write gate must remain disabled unless a controlled synthetic write validation is intentionally performed.
+- GitHub Actions backend tests must pass on the exact final branch head.
+- Frontend lint and production build must pass on the exact final branch head.
+- Core live API validation must pass against both isolated Radicale test principals.
+- Browser acceptance must confirm the isolated test address book loads only after login and disappears after logout.
+- Session expiration validation must pass with a temporary short TTL and the normal TTL must be restored afterward.
+- The local write gate must remain disabled throughout authentication validation.
 
 ## Current Limitation
 
