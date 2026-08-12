@@ -26,10 +26,7 @@ PRIMARY_CONTACT_NAME = "Jordan Example"
 PRIMARY_CONTACT_UID = "goreecloud-test-jordan-example-001"
 
 SYNTHETIC_NAME = "Milestone Four Example"
-SYNTHETIC_PHOTO = (
-    "data:image/png;base64,"
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
-)
+SYNTHETIC_PHOTO = "https://example.test/milestone4-photo.png"
 
 
 class ValidationFailure(RuntimeError):
@@ -253,7 +250,7 @@ def _assert_expanded_payload(detail: dict[str, Any], expected: dict[str, Any]) -
     if detail.get("addresses") != expected["addresses"]:
         _fail("Postal address did not round-trip through live CardDAV storage.")
     if detail.get("has_photo") is not True or detail.get("photo") != expected["photo"]:
-        _fail("Photo URI/data value did not round-trip through live CardDAV storage.")
+        _fail("Photo URI reference did not round-trip through live CardDAV storage.")
 
 
 def _best_effort_cleanup(
