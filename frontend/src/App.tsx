@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 
 import {
+  ApiError,
   createContact,
   deleteContact,
   getAddressBooks,
+  getAuthSession,
   getCardDavStatus,
   getContacts,
   getHealth,
+  login,
+  logout,
   updateContact,
   type AddressBook,
+  type AuthSession,
   type ContactSummary,
   type ContactWritePayload,
   type Health,
@@ -26,6 +31,7 @@ export default function App() {
   const [health, setHealth] = useState<Health | null>(null)
   const [configured, setConfigured] = useState<boolean | null>(null)
   const [writeEnabled, setWriteEnabled] = useState(false)
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null)
   const [addressBooks, setAddressBooks] = useState<AddressBook[]>([])
   const [selectedBook, setSelectedBook] = useState<string>('')
   const [contacts, setContacts] = useState<ContactSummary[]>([])
@@ -35,6 +41,8 @@ export default function App() {
   const [editor, setEditor] = useState<EditorState>(null)
   const [refreshCounter, setRefreshCounter] = useState(0)
 
+  const authenticated = authSession?.authenticated === true
+
   useEffect(() => {
     let cancelled = false
 
@@ -43,9 +51,10 @@ export default function App() {
       setError('')
 
       try {
-        const [healthResult, statusResult] = await Promise.all([
+        const [healthResult, statusResult, sessionResult] = await Promise.all([
           getHealth(),
           getCardDavStatus(),
+          getAuthSession(),
         ])
 
         if (cancelled) {
@@ -55,8 +64,9 @@ export default function App() {
         setHealth(healthResult)
         setConfigured(statusResult.configured)
         setWriteEnabled(statusResult.write_enabled)
+        setAuthSession(sessionResult)
 
-        if (!statusResult.configured) {
+        if (!statusResult.configured || !sessionResult.authenticated) {
           setState('ready')
           return
         }
@@ -67,11 +77,7 @@ export default function App() {
         }
 
         setAddressBooks(books)
-
-        if (books.length > 0) {
-          setSelectedBook(books[0].href)
-        }
-
+        setSelectedBook(books[0]?.href ?? '')
         setState('ready')
       } catch (caught) {
         if (cancelled) {
@@ -94,7 +100,7 @@ export default function App() {
     let cancelled = false
 
     async function loadContacts() {
-      if (!selectedBook) {
+      if (!authenticated || !selectedBook) {
         setContacts([])
         return
       }
@@ -109,10 +115,19 @@ export default function App() {
           setState('ready')
         }
       } catch (caught) {
-        if (!cancelled) {
-          setError(caught instanceof Error ? caught.message : 'Unknown error')
-          setState('error')
+        if (cancelled) {
+          return
         }
+
+        if (caught instanceof ApiError && caught.status === 401) {
+          resetAuthenticatedState()
+          setError('Your session expired. Sign in again to continue.')
+          setState('ready')
+          return
+        }
+
+        setError(caught instanceof Error ? caught.message : 'Unknown error')
+        setState('error')
       }
     }
 
@@ -121,7 +136,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [selectedBook, refreshCounter])
+  }, [authenticated, selectedBook, refreshCounter])
 
   const filteredContacts = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase()
@@ -143,6 +158,45 @@ export default function App() {
     })
   }, [contacts, query])
 
+  function resetAuthenticatedState() {
+    setAuthSession({ authenticated: false, username: null, expires_at: null })
+    setAddressBooks([])
+    setSelectedBook('')
+    setContacts([])
+    setEditor(null)
+    setQuery('')
+  }
+
+  async function signedIn(session: AuthSession) {
+    setAuthSession(session)
+    setState('loading')
+    setError('')
+
+    try {
+      const books = await getAddressBooks()
+      setAddressBooks(books)
+      setSelectedBook(books[0]?.href ?? '')
+      setState('ready')
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        resetAuthenticatedState()
+      }
+      setError(caught instanceof Error ? caught.message : 'Unable to load address books')
+      setState('error')
+      throw caught
+    }
+  }
+
+  async function signOut() {
+    try {
+      await logout()
+    } finally {
+      resetAuthenticatedState()
+      setError('')
+      setState('ready')
+    }
+  }
+
   function chooseBook(href: string) {
     setSelectedBook(href)
     setEditor(null)
@@ -160,11 +214,21 @@ export default function App() {
           <p className="eyebrow">GoreeCloud</p>
           <h1>Contacts</h1>
         </div>
-        <div className="backend-status" aria-live="polite">
-          <span
-            className={`status-dot ${health?.status === 'ok' ? 'online' : ''}`}
-          />
-          {health?.status === 'ok' ? 'Backend online' : 'Connecting'}
+        <div className="topbar-actions">
+          {authenticated ? (
+            <div className="account-controls">
+              <span>{authSession.username}</span>
+              <button type="button" className="text-button" onClick={() => void signOut()}>
+                Sign out
+              </button>
+            </div>
+          ) : null}
+          <div className="backend-status" aria-live="polite">
+            <span
+              className={`status-dot ${health?.status === 'ok' ? 'online' : ''}`}
+            />
+            {health?.status === 'ok' ? 'Backend online' : 'Connecting'}
+          </div>
         </div>
       </header>
 
@@ -173,7 +237,7 @@ export default function App() {
           <button
             type="button"
             className="create-button"
-            disabled={!writeEnabled || !selectedBook}
+            disabled={!authenticated || !writeEnabled || !selectedBook}
             onClick={() => setEditor({ mode: 'create' })}
           >
             + Create contact
@@ -188,7 +252,9 @@ export default function App() {
 
           <div className="sidebar-section">
             <p className="section-label">Address books</p>
-            {addressBooks.length === 0 ? (
+            {!authenticated ? (
+              <p className="muted">Sign in to load your address books.</p>
+            ) : addressBooks.length === 0 ? (
               <p className="muted">No address books loaded.</p>
             ) : (
               addressBooks.map((book) => (
@@ -223,6 +289,7 @@ export default function App() {
               type="search"
               placeholder="Search contacts"
               value={query}
+              disabled={!authenticated}
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
@@ -231,14 +298,17 @@ export default function App() {
             <div className="notice">
               <h3>CardDAV connection is not configured yet</h3>
               <p>
-                Copy <code>.env.example</code> to <code>.env</code> locally and
-                provide an approved test Radicale account. Credentials stay
-                outside Git.
+                Set <code>CARDDAV_BASE_URL</code> in the protected local environment.
+                User credentials are entered at sign-in and are not stored in Git.
               </p>
             </div>
           ) : null}
 
-          {configured && !writeEnabled ? (
+          {configured && !authenticated ? (
+            <LoginCard onSignedIn={signedIn} />
+          ) : null}
+
+          {configured && authenticated && !writeEnabled ? (
             <div className="notice">
               <h3>Write safety gate is active</h3>
               <p>
@@ -251,12 +321,12 @@ export default function App() {
 
           {error ? (
             <div className="notice error" role="alert">
-              <h3>Unable to load CardDAV data</h3>
+              <h3>Unable to complete the request</h3>
               <p>{error}</p>
             </div>
           ) : null}
 
-          {editor && selectedBook && writeEnabled ? (
+          {editor && selectedBook && authenticated && writeEnabled ? (
             <ContactEditor
               editor={editor}
               addressBookHref={selectedBook}
@@ -275,12 +345,10 @@ export default function App() {
 
             {state === 'loading' ? (
               <div className="empty-state">Loading…</div>
+            ) : !authenticated ? (
+              <div className="empty-state">Sign in to view contacts.</div>
             ) : filteredContacts.length === 0 ? (
-              <div className="empty-state">
-                {configured === false
-                  ? 'Configure a test CardDAV account to begin.'
-                  : 'No contacts found.'}
-              </div>
+              <div className="empty-state">No contacts found.</div>
             ) : (
               filteredContacts.map((contact) => (
                 <article className="contact-row" key={contact.href}>
@@ -309,6 +377,85 @@ export default function App() {
         </section>
       </main>
     </div>
+  )
+}
+
+function LoginCard({
+  onSignedIn,
+}: {
+  onSignedIn: (session: AuthSession) => Promise<void>
+}) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [loginError, setLoginError] = useState('')
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoginError('')
+
+    if (!username.trim() || !password) {
+      setLoginError('A CardDAV username and password are required.')
+      return
+    }
+
+    setBusy(true)
+    try {
+      const session = await login(username.trim(), password)
+      setPassword('')
+      await onSignedIn(session)
+    } catch (caught) {
+      setLoginError(caught instanceof Error ? caught.message : 'Unable to sign in')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form className="login-card" onSubmit={submit}>
+      <div>
+        <p className="eyebrow">Milestone 3</p>
+        <h3>Sign in to Radicale</h3>
+        <p className="muted">
+          Your password is sent only to the GoreeCloud Contacts backend for CardDAV
+          authentication and is never stored in the browser session cookie.
+        </p>
+      </div>
+
+      {loginError ? (
+        <div className="inline-error" role="alert">
+          {loginError}
+        </div>
+      ) : null}
+
+      <label>
+        Username
+        <input
+          autoComplete="username"
+          required
+          maxLength={256}
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+        />
+      </label>
+
+      <label>
+        Password
+        <input
+          autoComplete="current-password"
+          required
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+      </label>
+
+      <div className="login-actions">
+        <button type="submit" className="primary-button" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+      </div>
+    </form>
   )
 }
 
@@ -400,7 +547,7 @@ function ContactEditor({
     <form className="editor-card" onSubmit={submit}>
       <div className="editor-heading">
         <div>
-          <p className="eyebrow">Milestone 2</p>
+          <p className="eyebrow">CardDAV</p>
           <h3>{contact ? 'Edit contact' : 'Create contact'}</h3>
         </div>
         <button type="button" className="text-button" onClick={onCancel}>

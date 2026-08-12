@@ -3,9 +3,13 @@ import asyncio
 import httpx
 import pytest
 
-from app.carddav import CardDavClient, CardDavConflict
+from app.carddav import (
+    CardDavAuthorizationError,
+    CardDavClient,
+    CardDavConflict,
+)
 from app.config import Settings
-from app.models import ContactWriteRequest
+from app.models import AddressBook, ContactWriteRequest
 
 
 def _response(xml: str, url: str) -> httpx.Response:
@@ -44,14 +48,27 @@ def _vcard_response(
 def _settings() -> Settings:
     return Settings(
         carddav_base_url="https://carddav.example.test",
-        carddav_username="test-user",
-        carddav_password="test-password",
         carddav_write_enabled=True,
     )
 
 
+def _client() -> CardDavClient:
+    return CardDavClient(
+        _settings(),
+        username="test-user",
+        password="test-password",
+    )
+
+
+def _allow_test_book(monkeypatch, client: CardDavClient) -> None:
+    async def discover_address_books() -> list[AddressBook]:
+        return [AddressBook(href="/test-user/contacts/", display_name="Contacts")]
+
+    monkeypatch.setattr(client, "discover_address_books", discover_address_books)
+
+
 def test_discover_address_books(monkeypatch) -> None:
-    client = CardDavClient(_settings())
+    client = _client()
 
     responses = iter(
         [
@@ -132,7 +149,8 @@ def test_discover_address_books(monkeypatch) -> None:
 
 
 def test_list_contacts(monkeypatch) -> None:
-    client = CardDavClient(_settings())
+    client = _client()
+    _allow_test_book(monkeypatch, client)
 
     responses = iter(
         [
@@ -208,8 +226,25 @@ END:VCARD
     assert contacts[0].emails == ["jordan@example.test"]
 
 
+def test_rejects_address_book_outside_authenticated_scope(monkeypatch) -> None:
+    client = _client()
+    _allow_test_book(monkeypatch, client)
+
+    with pytest.raises(CardDavAuthorizationError):
+        asyncio.run(client.list_contacts("/other-user/contacts/"))
+
+
+def test_rejects_contact_outside_authenticated_scope(monkeypatch) -> None:
+    client = _client()
+    _allow_test_book(monkeypatch, client)
+
+    with pytest.raises(CardDavAuthorizationError):
+        asyncio.run(client.get_contact("/other-user/contacts/contact-001.vcf"))
+
+
 def test_create_contact_uses_if_none_match(monkeypatch) -> None:
-    client = CardDavClient(_settings())
+    client = _client()
+    _allow_test_book(monkeypatch, client)
     calls: list[dict[str, object]] = []
 
     async def fake_request(
@@ -265,7 +300,8 @@ def test_create_contact_uses_if_none_match(monkeypatch) -> None:
 
 
 def test_update_contact_uses_if_match_and_preserves_uid(monkeypatch) -> None:
-    client = CardDavClient(_settings())
+    client = _client()
+    _allow_test_book(monkeypatch, client)
     calls: list[dict[str, object]] = []
     get_count = 0
 
@@ -325,7 +361,8 @@ def test_update_contact_uses_if_match_and_preserves_uid(monkeypatch) -> None:
 
 
 def test_delete_contact_uses_if_match(monkeypatch) -> None:
-    client = CardDavClient(_settings())
+    client = _client()
+    _allow_test_book(monkeypatch, client)
     calls: list[dict[str, object]] = []
 
     async def fake_request(
@@ -359,7 +396,7 @@ def test_delete_contact_uses_if_match(monkeypatch) -> None:
 
 
 def test_precondition_failure_becomes_conflict(monkeypatch) -> None:
-    client = CardDavClient(_settings())
+    client = _client()
 
     class FakeAsyncClient:
         async def __aenter__(self):

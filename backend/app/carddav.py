@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import urljoin, urlparse
+from posixpath import normpath
+from urllib.parse import unquote, urljoin, urlparse
 from uuid import uuid4
 import xml.etree.ElementTree as ET
 
@@ -21,6 +22,14 @@ class CardDavError(RuntimeError):
     pass
 
 
+class CardDavAuthenticationError(CardDavError):
+    pass
+
+
+class CardDavAuthorizationError(CardDavError):
+    pass
+
+
 class CardDavConflict(CardDavError):
     pass
 
@@ -36,14 +45,19 @@ class ResourceRef:
 
 
 class CardDavClient:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        username: str,
+        password: str,
+    ) -> None:
         self.settings = settings
+        self.username = username
+        self.password = password
 
     def _auth(self) -> httpx.BasicAuth:
-        return httpx.BasicAuth(
-            self.settings.carddav_username,
-            self.settings.carddav_password,
-        )
+        return httpx.BasicAuth(self.username, self.password)
 
     def _resolve_safe_url(self, href: str) -> str:
         base = self.settings.carddav_base_url.rstrip("/") + "/"
@@ -56,13 +70,21 @@ class CardDavClient:
             target_parts.scheme != base_parts.scheme
             or target_parts.netloc != base_parts.netloc
         ):
-            raise CardDavError("CardDAV resource resolved outside the configured server.")
+            raise CardDavAuthorizationError(
+                "CardDAV resource resolved outside the configured server."
+            )
 
         return target
 
+    def _canonical_path(self, href: str) -> str:
+        target = self._resolve_safe_url(href)
+        decoded_path = unquote(urlparse(target).path)
+        normalized = normpath("/" + decoded_path.lstrip("/"))
+        return normalized.rstrip("/") or "/"
+
     @staticmethod
     def _validate_contact_href(href: str) -> None:
-        path = urlparse(href).path
+        path = unquote(urlparse(href).path)
         if not path.lower().endswith(".vcf"):
             raise CardDavError("CardDAV contact resource must use a .vcf path.")
 
@@ -110,6 +132,10 @@ class CardDavClient:
         except httpx.HTTPError as exc:
             raise CardDavError("Unable to reach the configured CardDAV server.") from exc
 
+        if response.status_code == 401:
+            raise CardDavAuthenticationError("CardDAV authentication failed.")
+        if response.status_code == 403:
+            raise CardDavAuthorizationError("CardDAV server denied access.")
         if response.status_code == 404:
             raise CardDavNotFound("CardDAV resource was not found.")
         if response.status_code == 412:
@@ -145,11 +171,6 @@ class CardDavClient:
         return None
 
     async def _discover_home_url(self) -> str:
-        if self.settings.carddav_addressbook_home_url:
-            return self._resolve_safe_url(
-                self.settings.carddav_addressbook_home_url
-            )
-
         base_url = self.settings.carddav_base_url
         principal_body = '''<?xml version="1.0" encoding="utf-8" ?>
 <d:propfind xmlns:d="DAV:">
@@ -244,6 +265,37 @@ class CardDavClient:
 
         return sorted(address_books, key=lambda item: item.display_name.casefold())
 
+    async def _authorized_address_book_url(self, href: str) -> str:
+        target_url = self._resolve_safe_url(href)
+        target_path = self._canonical_path(target_url)
+        address_books = await self.discover_address_books()
+
+        if any(
+            target_path == self._canonical_path(book.href)
+            for book in address_books
+        ):
+            return target_url
+
+        raise CardDavAuthorizationError(
+            "The selected address book is not authorized for this session."
+        )
+
+    async def _authorized_contact_url(self, href: str) -> str:
+        self._validate_contact_href(href)
+        target_url = self._resolve_safe_url(href)
+        target_path = self._canonical_path(target_url)
+        address_books = await self.discover_address_books()
+
+        for book in address_books:
+            book_path = self._canonical_path(book.href)
+            prefix = book_path.rstrip("/") + "/"
+            if target_path.startswith(prefix):
+                return target_url
+
+        raise CardDavAuthorizationError(
+            "The contact resource is not authorized for this session."
+        )
+
     async def _list_resource_refs(self, address_book_url: str) -> list[ResourceRef]:
         body = '''<?xml version="1.0" encoding="utf-8" ?>
 <d:propfind xmlns:d="DAV:">
@@ -285,7 +337,7 @@ class CardDavClient:
         return resources
 
     async def list_contacts(self, address_book_href: str) -> list[ContactSummary]:
-        address_book_url = self._resolve_safe_url(address_book_href)
+        address_book_url = await self._authorized_address_book_url(address_book_href)
         resource_refs = await self._list_resource_refs(address_book_url)
 
         if not resource_refs:
@@ -341,26 +393,31 @@ class CardDavClient:
 
         return sorted(contacts, key=lambda item: item.formatted_name.casefold())
 
-    async def get_contact(self, href: str) -> ContactSummary:
-        self._validate_contact_href(href)
+    async def _get_contact_unchecked(self, href: str) -> ContactSummary:
         url = self._resolve_safe_url(href)
         response = await self._request("GET", url)
         etag = response.headers.get("etag")
         return parse_vcard(response.text, href=href, etag=etag)
+
+    async def get_contact(self, href: str) -> ContactSummary:
+        await self._authorized_contact_url(href)
+        return await self._get_contact_unchecked(href)
 
     async def create_contact(
         self,
         address_book_href: str,
         payload: ContactWriteRequest,
     ) -> ContactSummary:
-        address_book_url = self._resolve_safe_url(address_book_href)
+        address_book_url = await self._authorized_address_book_url(address_book_href)
         uid = str(uuid4())
         resource_href = address_book_href.rstrip("/") + f"/{uid}.vcf"
         resource_url = self._resolve_safe_url(resource_href)
 
         expected_prefix = address_book_url.rstrip("/") + "/"
         if not resource_url.startswith(expected_prefix):
-            raise CardDavError("CardDAV contact resolved outside the selected address book.")
+            raise CardDavAuthorizationError(
+                "CardDAV contact resolved outside the selected address book."
+            )
 
         vcard = build_vcard(
             uid=uid,
@@ -375,7 +432,7 @@ class CardDavClient:
             headers={"If-None-Match": "*"},
             content_type="text/vcard; charset=utf-8",
         )
-        return await self.get_contact(resource_href)
+        return await self._get_contact_unchecked(resource_href)
 
     async def update_contact(
         self,
@@ -383,11 +440,10 @@ class CardDavClient:
         etag: str,
         payload: ContactWriteRequest,
     ) -> ContactSummary:
-        self._validate_contact_href(href)
+        resource_url = await self._authorized_contact_url(href)
         normalized_etag = self._validate_etag(etag)
-        current = await self.get_contact(href)
+        current = await self._get_contact_unchecked(href)
         uid = current.uid or str(uuid4())
-        resource_url = self._resolve_safe_url(href)
         vcard = build_vcard(
             uid=uid,
             formatted_name=payload.formatted_name,
@@ -402,12 +458,11 @@ class CardDavClient:
             headers={"If-Match": normalized_etag},
             content_type="text/vcard; charset=utf-8",
         )
-        return await self.get_contact(href)
+        return await self._get_contact_unchecked(href)
 
     async def delete_contact(self, href: str, etag: str) -> None:
-        self._validate_contact_href(href)
+        resource_url = await self._authorized_contact_url(href)
         normalized_etag = self._validate_etag(etag)
-        resource_url = self._resolve_safe_url(href)
         await self._request(
             "DELETE",
             resource_url,

@@ -10,6 +10,12 @@ export type CardDavStatus = {
   write_enabled: boolean
 }
 
+export type AuthSession = {
+  authenticated: boolean
+  username: string | null
+  expires_at: string | null
+}
+
 export type AddressBook = {
   href: string
   display_name: string
@@ -35,12 +41,23 @@ export type ContactDeleteResponse = {
   href: string
 }
 
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function requestJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(path, {
     ...init,
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
@@ -59,7 +76,7 @@ async function requestJson<T>(
       // Keep the HTTP status message when the response is not JSON.
     }
 
-    throw new Error(message)
+    throw new ApiError(response.status, message)
   }
 
   return (await response.json()) as T
@@ -71,6 +88,21 @@ export function getHealth(): Promise<Health> {
 
 export function getCardDavStatus(): Promise<CardDavStatus> {
   return requestJson<CardDavStatus>('/api/carddav/status')
+}
+
+export function getAuthSession(): Promise<AuthSession> {
+  return requestJson<AuthSession>('/api/auth/session')
+}
+
+export function login(username: string, password: string): Promise<AuthSession> {
+  return requestJson<AuthSession>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export function logout(): Promise<AuthSession> {
+  return requestJson<AuthSession>('/api/auth/logout', { method: 'POST' })
 }
 
 export function getAddressBooks(): Promise<AddressBook[]> {
