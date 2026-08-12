@@ -36,6 +36,9 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install -e ".[test]"
 
+      - name: Validate live helper syntax
+        run: python -m py_compile scripts/validate_milestone3_live.py
+
       - name: Run backend tests
         run: pytest -q
 
