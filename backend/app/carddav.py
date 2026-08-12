@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
+from uuid import uuid4
 import xml.etree.ElementTree as ET
 
 import httpx
 
 from .config import Settings
-from .models import AddressBook, ContactSummary
-from .vcard import parse_vcard
+from .models import AddressBook, ContactSummary, ContactWriteRequest
+from .vcard import build_vcard, parse_vcard
 
 
 DAV = "DAV:"
@@ -17,6 +18,14 @@ NS = {"d": DAV, "c": CARDDAV}
 
 
 class CardDavError(RuntimeError):
+    pass
+
+
+class CardDavConflict(CardDavError):
+    pass
+
+
+class CardDavNotFound(CardDavError):
     pass
 
 
@@ -51,6 +60,19 @@ class CardDavClient:
 
         return target
 
+    @staticmethod
+    def _validate_contact_href(href: str) -> None:
+        path = urlparse(href).path
+        if not path.lower().endswith(".vcf"):
+            raise CardDavError("CardDAV contact resource must use a .vcf path.")
+
+    @staticmethod
+    def _validate_etag(etag: str) -> str:
+        normalized = etag.strip()
+        if not normalized:
+            raise CardDavError("An ETag is required for this CardDAV write operation.")
+        return normalized
+
     async def _request(
         self,
         method: str,
@@ -58,14 +80,20 @@ class CardDavClient:
         *,
         depth: str | None = None,
         body: str | None = None,
+        headers: dict[str, str] | None = None,
+        content_type: str | None = None,
     ) -> httpx.Response:
-        headers = {
+        request_headers = {
             "Accept": "application/xml, text/xml, text/vcard",
         }
         if depth is not None:
-            headers["Depth"] = depth
-        if body is not None:
-            headers["Content-Type"] = "application/xml; charset=utf-8"
+            request_headers["Depth"] = depth
+        if content_type is not None:
+            request_headers["Content-Type"] = content_type
+        elif body is not None:
+            request_headers["Content-Type"] = "application/xml; charset=utf-8"
+        if headers:
+            request_headers.update(headers)
 
         try:
             async with httpx.AsyncClient(
@@ -76,12 +104,18 @@ class CardDavClient:
                 response = await client.request(
                     method,
                     url,
-                    headers=headers,
+                    headers=request_headers,
                     content=body,
                 )
         except httpx.HTTPError as exc:
             raise CardDavError("Unable to reach the configured CardDAV server.") from exc
 
+        if response.status_code == 404:
+            raise CardDavNotFound("CardDAV resource was not found.")
+        if response.status_code == 412:
+            raise CardDavConflict(
+                "CardDAV precondition failed because the resource changed or already exists."
+            )
         if response.status_code >= 400:
             raise CardDavError(
                 f"CardDAV server returned HTTP {response.status_code}."
@@ -306,6 +340,79 @@ class CardDavClient:
             )
 
         return sorted(contacts, key=lambda item: item.formatted_name.casefold())
+
+    async def get_contact(self, href: str) -> ContactSummary:
+        self._validate_contact_href(href)
+        url = self._resolve_safe_url(href)
+        response = await self._request("GET", url)
+        etag = response.headers.get("etag")
+        return parse_vcard(response.text, href=href, etag=etag)
+
+    async def create_contact(
+        self,
+        address_book_href: str,
+        payload: ContactWriteRequest,
+    ) -> ContactSummary:
+        address_book_url = self._resolve_safe_url(address_book_href)
+        uid = str(uuid4())
+        resource_href = address_book_href.rstrip("/") + f"/{uid}.vcf"
+        resource_url = self._resolve_safe_url(resource_href)
+
+        expected_prefix = address_book_url.rstrip("/") + "/"
+        if not resource_url.startswith(expected_prefix):
+            raise CardDavError("CardDAV contact resolved outside the selected address book.")
+
+        vcard = build_vcard(
+            uid=uid,
+            formatted_name=payload.formatted_name,
+            emails=payload.emails,
+            phones=payload.phones,
+        )
+        await self._request(
+            "PUT",
+            resource_url,
+            body=vcard,
+            headers={"If-None-Match": "*"},
+            content_type="text/vcard; charset=utf-8",
+        )
+        return await self.get_contact(resource_href)
+
+    async def update_contact(
+        self,
+        href: str,
+        etag: str,
+        payload: ContactWriteRequest,
+    ) -> ContactSummary:
+        self._validate_contact_href(href)
+        normalized_etag = self._validate_etag(etag)
+        current = await self.get_contact(href)
+        uid = current.uid or str(uuid4())
+        resource_url = self._resolve_safe_url(href)
+        vcard = build_vcard(
+            uid=uid,
+            formatted_name=payload.formatted_name,
+            emails=payload.emails,
+            phones=payload.phones,
+        )
+
+        await self._request(
+            "PUT",
+            resource_url,
+            body=vcard,
+            headers={"If-Match": normalized_etag},
+            content_type="text/vcard; charset=utf-8",
+        )
+        return await self.get_contact(href)
+
+    async def delete_contact(self, href: str, etag: str) -> None:
+        self._validate_contact_href(href)
+        normalized_etag = self._validate_etag(etag)
+        resource_url = self._resolve_safe_url(href)
+        await self._request(
+            "DELETE",
+            resource_url,
+            headers={"If-Match": normalized_etag},
+        )
 
 
 def _xml_escape(value: str) -> str:
