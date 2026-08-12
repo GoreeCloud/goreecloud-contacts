@@ -1,0 +1,57 @@
+# Operating-system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local application state
+*.db
+*.sqlite
+*.sqlite3
+instance/
+local-data/
+
+# Test and temporary data
+.tmp/
+tmp/
+.cache/
+playwright-report/
+test-results/
+
+# Docker development overrides
+docker-compose.override.yml
+compose.override.yml
