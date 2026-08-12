@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     carddav_username: str = ""
     carddav_password: str = ""
     carddav_timeout_seconds: float = 15.0
+    carddav_write_enabled: bool = False
 
     model_config = SettingsConfigDict(
         env_file=_ROOT_ENV,
