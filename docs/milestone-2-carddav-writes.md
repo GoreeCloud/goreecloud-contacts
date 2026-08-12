@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, automated validation, live API write validation, and browser create/edit/delete validation all completed successfully on August 12, 2026 against the isolated Radicale test environment. The remaining pre-merge step is to disable the local write gate again and confirm final CI/PR state.
+Milestone 2 implementation and validation completed successfully on August 12, 2026 against the isolated Radicale test environment. Automated tests, live API validation, browser create/edit/delete validation, and restoration of the local read-only safety state all passed.
 
 ## Purpose
 
@@ -68,7 +68,7 @@ Validation results:
 - npm reported zero vulnerabilities for the installed frontend dependency set at validation time.
 - Frontend lint completed with zero warnings and zero errors.
 - Frontend TypeScript and Vite production build completed successfully.
-- GitHub Actions continuous integration completed successfully for draft PR #4 before the final browser-validation documentation update.
+- GitHub Actions continuous integration passed on the Milestone 2 branch after the final validation documentation updates.
 
 The automated test suite verifies:
 
@@ -121,6 +121,17 @@ Observed results:
 
 The browser create → edit → delete flow therefore passed, including UI refresh after writes and preservation of the existing synthetic fixture.
 
+## Safety Restoration
+
+After live validation, I restored the protected local environment to its default safety posture:
+
+- `CARDDAV_WRITE_ENABLED=false` was set in the local `.env`.
+- The `.env` file remained mode `600`.
+- FastAPI was restarted so the updated setting was loaded.
+- `/api/carddav/status` returned `configured: true`, `read_only: true`, and `write_enabled: false`.
+
+The local GoreeCloud Contacts development environment therefore ended Milestone 2 in read-only safety mode.
+
 ## Merge Gate
 
-The functional Milestone 2 merge gates have passed: automated tests, isolated live API create/update/conflict/delete validation, and isolated browser create/edit/delete validation. Before merging, I will disable the local write gate again, verify the application returns to read-only safety mode, and confirm final GitHub Actions/PR status after this documentation update.
+All Milestone 2 merge gates passed: automated tests and CI, isolated live API create/update/conflict/delete validation, isolated browser create/edit/delete validation, preservation of the existing synthetic fixture, and restoration of the local write gate to disabled/read-only state.
