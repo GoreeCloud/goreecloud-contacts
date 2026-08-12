@@ -143,6 +143,29 @@ def _postal_address(raw_value: str, params: dict[str, list[str]]) -> PostalAddre
     )
 
 
+def _photo_uri_compat(raw_value: str) -> str:
+    """Normalize the known Radicale/vobject data-URI escaping defect on reads.
+
+    RFC 6350 PHOTO values are URIs, so the semicolon separating a data URI's
+    media type from the ``base64`` marker must not be backslash-escaped.
+    Some Radicale/vobject combinations rewrite it as ``\\;`` (and may escape
+    the following comma).  GoreeCloud continues to emit standards-compliant
+    vCard 4.0 and tolerates only this narrow server-side rewrite when reading.
+    """
+
+    normalized = raw_value.strip()
+    if not normalized.casefold().startswith("data:image/"):
+        return normalized
+
+    return re.sub(
+        r"^(data:image/[^,]*?)\\;base64\\?,",
+        r"\1;base64,",
+        normalized,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+
+
 def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactDetail:
     uid: str | None = None
     formatted_name: str | None = None
@@ -197,7 +220,7 @@ def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactDetail:
         elif name == "X-GOREECLOUD-FAVORITE":
             favorite = raw_value.strip().casefold() in {"1", "true", "yes"}
         elif name == "PHOTO" and not photo and raw_value:
-            photo = raw_value
+            photo = _photo_uri_compat(raw_value)
 
     return ContactDetail(
         href=href,
