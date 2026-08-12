@@ -4,11 +4,13 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Active development — Milestone 3 authentication and multi-user isolation complete
+**Status:** Active development — Milestone 4 expanded contact model and product workflows in progress
 
 Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
 
-Milestone 3 adds per-user Radicale authentication, opaque server-side sessions, strict application-level address-book isolation, logout/session-expiration behavior, and live negative two-user authorization validation. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
+Milestone 3 adds per-user Radicale authentication, opaque server-side sessions, strict application-level address-book isolation, logout/session-expiration behavior, and live negative two-user authorization validation.
+
+Milestone 4 is now active. Phase 4A expands the contact model beyond name/email/phone data and adds a dedicated detail view, favorites, broader search, expanded conditional writes, and additional vCard fields. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
 
 ## Role
 
@@ -72,7 +74,8 @@ goreecloud-contacts/
 │   ├── security.md
 │   ├── milestone-1-carddav-poc.md
 │   ├── milestone-2-carddav-writes.md
-│   └── milestone-3-authentication-isolation.md
+│   ├── milestone-3-authentication-isolation.md
+│   └── milestone-4-expanded-contact-model.md
 ├── .github/workflows/ci.yml
 ├── .env.example
 ├── .gitignore
@@ -122,14 +125,42 @@ goreecloud-contacts/
 - Validated session expiration with a temporary five-second TTL and restored the normal 28,800-second development TTL afterward.
 - Confirmed `CARDDAV_WRITE_ENABLED=false` remained the live safety state throughout authentication validation.
 
-### Milestone 4 — Expanded Contact Model and Product Workflows
+### Milestone 4 — Expanded Contact Model and Product Workflows — In Progress
 
-- Add broader vCard field support, including structured names, organizations, titles, postal addresses, birthdays, websites, notes, categories, and photos where supported.
-- Add favorites and category workflows.
-- Add VCF import and export.
-- Add duplicate detection and merge workflows.
-- Continue responsive, dark-mode, accessibility, and user-experience improvements.
-- Expand automated tests for the larger contact model and workflows.
+#### Phase 4A — Expanded contact model — Implemented; validation pending
+
+- Added structured names with family, given, additional, prefix, and suffix components.
+- Added organization and job-title support.
+- Added multiple postal addresses and address types.
+- Added birthdays, websites, notes, categories, favorites, and photo-reference awareness.
+- Added an authenticated per-contact detail endpoint while retaining per-user authorization checks.
+- Expanded create/update serialization while preserving UID and ETag protections.
+- Added Contacts and Favorites views.
+- Expanded search to organization, title, categories, email, phone, and display name.
+- Added read-only contact-detail viewing even while writes remain disabled.
+- Added an expanded browser editor for approved write-enabled validation.
+- Prevented automatic external photo loading; only embedded `data:image/...` values are rendered automatically.
+- Added expanded vCard parser/serializer tests.
+
+#### Phase 4B — Portable VCF workflows — Planned
+
+- Add individual and address-book VCF export.
+- Add VCF import preview and validation.
+- Require explicit address-book selection and conflict-safe import behavior.
+
+#### Phase 4C — Duplicate detection and merge — Planned
+
+- Add duplicate-candidate detection using normalized identity fields.
+- Add user-reviewed merge previews.
+- Preserve ETag protection and avoid destructive automatic merges.
+
+#### Phase 4D — Product and Glaze UI refinement — Planned
+
+- Continue responsive, dark-mode, accessibility, keyboard, and error-state improvements.
+- Align GoreeCloud Contacts with the Glaze UI design language.
+- Review richer photo workflows and unknown-vCard-property preservation.
+
+See `docs/milestone-4-expanded-contact-model.md` for implementation scope, compatibility boundaries, and validation gates.
 
 ### Milestone 5 — Production Readiness and Deployment
 
@@ -147,9 +178,11 @@ goreecloud-contacts/
 
 I will not commit passwords, active CardDAV credentials, tokens, private keys, session values, or other reusable credentials to this repository.
 
-The browser must never receive a user's CardDAV password after sign-in. The current Milestone 3 session model keeps the password only in backend process memory while the browser holds a random opaque HTTP-only session token.
+The browser must never receive a user's CardDAV password after sign-in. The current session model keeps the password only in backend process memory while the browser holds a random opaque HTTP-only session token.
 
 Authentication does not grant unrestricted CardDAV access. Every address-book and contact request must remain within the collections authorized for the signed-in user.
+
+Milestone 4 contact-detail reads remain subject to the same per-user CardDAV authorization boundary as updates and deletes. The detail endpoint is not an arbitrary CardDAV fetch proxy.
 
 Development and validation must use isolated test accounts, test address books, and synthetic contact data whenever practical. Production family contact data must not be used as a convenient development dataset.
 
