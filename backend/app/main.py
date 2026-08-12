@@ -18,6 +18,7 @@ from .models import (
     AuthSessionResponse,
     CardDavStatusResponse,
     ContactDeleteResponse,
+    ContactDetail,
     ContactSummary,
     ContactWriteRequest,
     HealthResponse,
@@ -29,10 +30,11 @@ session_store = SessionStore(settings.session_ttl_seconds)
 
 app = FastAPI(
     title="GoreeCloud Contacts API",
-    version="0.3.0",
+    version="0.4.0",
     description=(
         "CardDAV API for GoreeCloud Contacts with Radicale-backed authentication, "
-        "per-user collection isolation, and conditional write protection."
+        "per-user collection isolation, expanded vCard contact fields, and conditional "
+        "write protection."
     ),
 )
 
@@ -199,40 +201,55 @@ async def contacts(
         raise _carddav_failure(exc) from exc
 
 
+@app.get("/api/carddav/contact", response_model=ContactDetail)
+async def contact(
+    session: AuthenticatedSession,
+    href: Annotated[str, Query(min_length=1)],
+) -> ContactDetail:
+    try:
+        return await _carddav_client(session).get_contact(href)
+    except CardDavError as exc:
+        raise _carddav_failure(exc) from exc
+
+
 @app.post(
     "/api/carddav/contacts",
-    response_model=ContactSummary,
+    response_model=ContactDetail,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_contact(
     payload: ContactWriteRequest,
     session: AuthenticatedSession,
     address_book_href: Annotated[str, Query(min_length=1)],
-) -> ContactSummary:
+) -> ContactDetail:
     try:
         return await _carddav_client(session, require_write=True).create_contact(
             address_book_href,
             payload,
         )
-    except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+    except (CardDavError, ValueError) as exc:
+        if isinstance(exc, CardDavError):
+            raise _carddav_failure(exc) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.put("/api/carddav/contact", response_model=ContactSummary)
+@app.put("/api/carddav/contact", response_model=ContactDetail)
 async def update_contact(
     payload: ContactWriteRequest,
     session: AuthenticatedSession,
     href: Annotated[str, Query(min_length=1)],
     etag: Annotated[str, Query(min_length=1)],
-) -> ContactSummary:
+) -> ContactDetail:
     try:
         return await _carddav_client(session, require_write=True).update_contact(
             href,
             etag,
             payload,
         )
-    except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+    except (CardDavError, ValueError) as exc:
+        if isinstance(exc, CardDavError):
+            raise _carddav_failure(exc) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.delete("/api/carddav/contact", response_model=ContactDeleteResponse)
