@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation branch created on August 12, 2026. Automated validation and live Radicale write validation remain required before merge.
+Implementation and automated validation completed on August 12, 2026. Live API write validation against the isolated Radicale test address book also completed successfully. Browser-based create, edit, and delete validation remains required before merge.
 
 ## Purpose
 
@@ -58,7 +58,19 @@ When the write safety gate is disabled, the application remains in read-only saf
 
 ## Automated Validation
 
-The Milestone 2 test suite must verify:
+I completed the Milestone 2 automated validation on August 12, 2026.
+
+Validation results:
+
+- Backend test suite: `9 passed`.
+- Existing Starlette `httpx` TestClient deprecation warning remained non-blocking.
+- Frontend dependency installation with `npm ci` completed successfully.
+- npm reported zero vulnerabilities for the installed frontend dependency set at validation time.
+- Frontend lint completed with zero warnings and zero errors.
+- Frontend TypeScript and Vite production build completed successfully.
+- GitHub Actions continuous integration completed successfully for draft PR #4.
+
+The automated test suite verifies:
 
 - Existing CardDAV discovery and read behavior.
 - vCard serialization and parse round-tripping.
@@ -68,24 +80,39 @@ The Milestone 2 test suite must verify:
 - CardDAV HTTP `412` responses become explicit conflicts.
 - Frontend lint and production build continue to pass.
 
-## Live Validation Plan
+## Live API Validation
 
-Live testing must use only the dedicated `goreecloud-contacts-test` Radicale identity and `GoreeCloud Contacts Test` address book.
+I completed live API write validation against only the dedicated `goreecloud-contacts-test` Radicale identity and the `GoreeCloud Contacts Test` address book.
 
-The live sequence will be:
+The validation sequence and results were:
 
-1. Confirm the application is still read-only while `CARDDAV_WRITE_ENABLED` is false.
-2. Enable the write gate only in the protected local `.env`.
-3. Create a new synthetic contact from the browser and confirm Radicale stores it.
-4. Edit that synthetic contact and confirm the ETag changes.
-5. Simulate a stale ETag and confirm the application reports a conflict instead of overwriting the newer server version.
-6. Delete the synthetic contact using its current ETag.
-7. Confirm the existing `Jordan Example` fixture remains intact unless deliberately used for a controlled update test.
-8. Re-run backend tests, frontend lint, and frontend production build.
-9. Disable the write gate again after testing unless continued write development is required.
+1. Confirmed the application remained read-only while the write safety gate was disabled. `/api/carddav/status` returned `configured: true`, `read_only: true`, and `write_enabled: false`.
+2. Enabled `CARDDAV_WRITE_ENABLED=true` only in the protected local `.env`, which remained mode `600`.
+3. Restarted the local FastAPI development server and confirmed `/api/carddav/status` returned `write_enabled: true` and `read_only: false`.
+4. Created a synthetic `Milestone Two Test` contact through the GoreeCloud Contacts API. The API returned HTTP `201` and Radicale assigned the resource an ETag.
+5. Updated the synthetic contact to `Milestone Two Updated` using the original ETag. The API returned HTTP `200`, the UID remained unchanged, and the returned ETag changed.
+6. Attempted another update using the stale original ETag. Radicale rejected the conditional request, and the API returned HTTP `409` with a CardDAV precondition-conflict message.
+7. Re-read the address book and confirmed the stale update did not overwrite `Milestone Two Updated`.
+8. Deleted the synthetic contact using its current ETag. The API returned HTTP `200`.
+9. Re-read the address book and confirmed the synthetic Milestone 2 contact was removed.
+10. Confirmed the existing `Jordan Example` synthetic fixture remained present and unchanged throughout the test.
 
-No production family contact collection will be used for Milestone 2 validation.
+The live API validation therefore passed the complete create → update → stale-ETag conflict → delete sequence, preserved the contact UID across update, prevented the stale write from winning, and removed the temporary test contact successfully.
+
+No production family contact collection was used for Milestone 2 validation.
+
+## Remaining Browser Validation
+
+Before merge, I will validate the React interface against the same isolated test address book by:
+
+1. Confirming the interface displays `Conditional writes enabled` while the local write gate is active.
+2. Creating a synthetic browser test contact.
+3. Editing the browser-created contact and confirming the refreshed contact list shows the updated values.
+4. Deleting the browser-created contact through the confirmation flow.
+5. Confirming the contact disappears after deletion and `Jordan Example` remains intact.
+6. Re-running automated validation if any source code changes are required as a result of browser testing.
+7. Disabling the local write gate again after Milestone 2 validation unless continued write development is required.
 
 ## Merge Gate
 
-I will not merge Milestone 2 until automated CI passes and the conditional write behavior has been validated against the isolated Radicale test environment.
+I will not merge Milestone 2 until automated CI passes, the conditional write behavior has been validated against the isolated Radicale test environment, and the browser create/edit/delete flow has been verified successfully.
