@@ -80,6 +80,25 @@ END:VCARD
     assert contact.photo == "data:image/png;base64,AAAA"
 
 
+def test_parse_radicale_vobject_escaped_photo_uri() -> None:
+    raw = """BEGIN:VCARD
+VERSION:4.0
+UID:test-radicale-photo-compat
+FN:Radicale Photo Example
+PHOTO;VALUE=uri:data:image/png\\;base64\\,AAAA
+END:VCARD
+"""
+
+    contact = parse_vcard(
+        raw,
+        href="/addressbooks/test/radicale-photo-compat.vcf",
+        etag='"radicale-photo-etag"',
+    )
+
+    assert contact.has_photo is True
+    assert contact.photo == "data:image/png;base64,AAAA"
+
+
 def test_structured_name_falls_back_when_fn_is_missing() -> None:
     raw = """BEGIN:VCARD
 VERSION:4.0
