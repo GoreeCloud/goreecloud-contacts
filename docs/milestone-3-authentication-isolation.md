@@ -10,7 +10,7 @@ Radicale remains the authoritative contact store. GoreeCloud Contacts does not c
 
 ### Radicale-Backed Sign-In
 
-The frontend now provides a username/password sign-in flow. The backend validates those credentials by performing CardDAV discovery with the supplied identity.
+The frontend provides a username/password sign-in flow. The backend validates those credentials by performing CardDAV discovery with the supplied identity.
 
 Successful authentication creates an opaque server-side session. The browser receives only a random HTTP-only session token.
 
@@ -33,13 +33,13 @@ Session endpoints:
 - `GET /api/auth/session`
 - `POST /api/auth/logout`
 
-All CardDAV data routes now require an authenticated session.
+All CardDAV data routes require an authenticated session.
 
 ### Per-User CardDAV Clients
 
 Every protected request constructs a CardDAV client from the authenticated session's credentials. The backend no longer uses `CARDDAV_USERNAME`, `CARDDAV_PASSWORD`, or a globally configured address-book home path for normal application access.
 
-The protected environment now supplies the CardDAV service endpoint rather than one shared CardDAV identity.
+The protected environment supplies the CardDAV service endpoint rather than one shared CardDAV identity.
 
 ### Application-Level Collection Isolation
 
@@ -77,6 +77,8 @@ The branch adds tests for:
 - rejection of an address book outside the authenticated user's discovered scope;
 - rejection of a contact resource outside the authenticated user's discovered scope;
 - preservation of existing conditional create/update/delete behavior.
+
+The automated backend suite contains 15 passing tests. The existing Starlette TestClient deprecation warning remains non-blocking.
 
 ## Live Validation Harness
 
@@ -136,7 +138,7 @@ The password must be entered interactively and kept outside the repository and c
 
 Expected file state remains `debian:debian` mode `640`, and Radicale should remain healthy without requiring an account-addition restart.
 
-### 3. Synchronize the Development Laptop to the Draft PR Branch
+### 3. Synchronize the Development Laptop
 
 ```bash
 cd ~/goreecloud-contacts
@@ -220,19 +222,84 @@ CARDDAV_WRITE_ENABLED=false
 
 Restart the backend and re-check `/api/carddav/status` before treating live validation as complete.
 
-## Validation Still Required Before Merge
+## Live Validation Completed — August 12, 2026 at 5:04 PM CDT
 
-- GitHub Actions backend tests must pass on the exact final branch head.
-- Frontend lint and production build must pass on the exact final branch head.
-- Core live API validation must pass against both isolated Radicale test principals.
-- Browser acceptance must confirm the isolated test address book loads only after login and disappears after logout.
-- Session expiration validation must pass with a temporary short TTL and the normal TTL must be restored afterward.
-- The local write gate must remain disabled throughout authentication validation.
+Milestone 3 live validation was completed with isolated, non-production Radicale identities and synthetic contact data.
+
+### Radicale Isolation Principal
+
+- A backup of `/srv/docker/config/radicale/users` was created before the account change.
+- `goreecloud-contacts-isolation-test` was added with bcrypt cost 12 through interactive `htpasswd` entry.
+- No password was written to the repository, documentation, terminal command arguments, or conversation.
+- `/srv/docker/config/radicale/users` remained owned by `debian:debian` with mode `640`.
+- The Radicale container remained healthy after the account addition.
+
+### Browser and Primary-Identity Acceptance
+
+- The frontend and FastAPI backend ran locally on the approved development workstation.
+- Browser sign-in succeeded for `goreecloud-contacts-test`.
+- The authenticated username was displayed.
+- `GoreeCloud Contacts Test` loaded through the signed-in user's live CardDAV principal path.
+- The retained `Jordan Example` synthetic fixture loaded with its expected test contact information.
+- The interface visibly remained in read-only safety mode while `CARDDAV_WRITE_ENABLED=false`.
+- The frontend sign-out path clears the authenticated session state, address books, selected address book, contacts, editor state, and search query after requesting backend logout. Live core API validation independently proved immediate logout invalidation for both test identities.
+
+### Session-Expiration Validation
+
+The protected local `.env` was temporarily changed to `SESSION_TTL_SECONDS=5`. The expiration harness then passed the following live checks:
+
+- backend health and CardDAV configuration;
+- disabled CardDAV write gate;
+- initial unauthenticated state;
+- HTTP 401 for protected CardDAV access before login;
+- live Radicale-backed login for `goreecloud-contacts-test`;
+- authentication response contained no password/token fields;
+- session cookie was HttpOnly and SameSite=Strict;
+- the test session expired after the configured short lifetime;
+- the expired session was removed;
+- protected CardDAV access returned HTTP 401 after expiration.
+
+The run ended with `Milestone 3 session-expiration validation PASSED.`
+
+After the test, the protected local environment was restored to:
+
+```dotenv
+CARDDAV_BASE_URL=https://calendar.goreecloud.com
+FRONTEND_ORIGIN=http://localhost:5173
+CARDDAV_WRITE_ENABLED=false
+SESSION_TTL_SECONDS=28800
+```
+
+### Core Two-User Isolation Validation
+
+The core live harness passed against both isolated Radicale identities. It verified:
+
+- backend health;
+- configured CardDAV with writes disabled;
+- fresh unauthenticated state;
+- HTTP 401 for protected CardDAV access without a session;
+- Radicale-backed login for `goreecloud-contacts-test`;
+- no password/token fields in the authentication response;
+- HttpOnly and SameSite=Strict cookie attributes;
+- authenticated session metadata limited to identity and expiration information;
+- discovery through the primary user's live Radicale/CardDAV principal path;
+- retrieval of the retained `Jordan Example` synthetic fixture;
+- immediate primary-session invalidation on logout;
+- independent Radicale-backed login for `goreecloud-contacts-isolation-test`;
+- no discovery of the primary user's address book by the secondary principal;
+- application-level rejection of explicit cross-user address-book selection with HTTP 403;
+- immediate secondary-session invalidation on logout.
+
+The run ended with `Milestone 3 core live API validation PASSED.`
+
+No production family contact data was used.
+
+## Final Merge Gate
+
+The authentication, expiration, read-only safety, and two-user live-isolation gates are complete. The remaining merge gate is successful GitHub Actions validation on the exact final branch head that contains this validation record.
 
 ## Current Limitation
 
 The session store is process-local. Backend restarts invalidate all sessions, and multiple backend workers would not share session state. This is acceptable for the current development milestone but must be reviewed before production deployment.
 
-## Merge Gate
-
-Do not merge Milestone 3 until automated CI succeeds and the required isolated live multi-user validation is complete.
+Production deployment also requires a final decision on explicit CSRF-token protection versus additional Origin/Referer enforcement for the approved HTTPS deployment model.
