@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Field
+from datetime import datetime
+
+from pydantic import BaseModel, Field, SecretStr
 
 
 class HealthResponse(BaseModel):
@@ -11,6 +13,17 @@ class CardDavStatusResponse(BaseModel):
     configured: bool
     read_only: bool
     write_enabled: bool
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=256)
+    password: SecretStr
+
+
+class AuthSessionResponse(BaseModel):
+    authenticated: bool
+    username: str | None = None
+    expires_at: datetime | None = None
 
 
 class AddressBook(BaseModel):
