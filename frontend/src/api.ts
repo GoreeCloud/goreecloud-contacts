@@ -7,6 +7,7 @@ export type Health = {
 export type CardDavStatus = {
   configured: boolean
   read_only: boolean
+  write_enabled: boolean
 }
 
 export type AddressBook = {
@@ -23,10 +24,26 @@ export type ContactSummary = {
   phones: string[]
 }
 
-async function getJson<T>(path: string): Promise<T> {
+export type ContactWritePayload = {
+  formatted_name: string
+  emails: string[]
+  phones: string[]
+}
+
+export type ContactDeleteResponse = {
+  deleted: boolean
+  href: string
+}
+
+async function requestJson<T>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const response = await fetch(path, {
+    ...init,
     headers: {
       Accept: 'application/json',
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
     },
   })
 
@@ -49,18 +66,51 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 export function getHealth(): Promise<Health> {
-  return getJson<Health>('/api/health')
+  return requestJson<Health>('/api/health')
 }
 
 export function getCardDavStatus(): Promise<CardDavStatus> {
-  return getJson<CardDavStatus>('/api/carddav/status')
+  return requestJson<CardDavStatus>('/api/carddav/status')
 }
 
 export function getAddressBooks(): Promise<AddressBook[]> {
-  return getJson<AddressBook[]>('/api/carddav/address-books')
+  return requestJson<AddressBook[]>('/api/carddav/address-books')
 }
 
 export function getContacts(addressBookHref: string): Promise<ContactSummary[]> {
   const params = new URLSearchParams({ address_book_href: addressBookHref })
-  return getJson<ContactSummary[]>(`/api/carddav/contacts?${params.toString()}`)
+  return requestJson<ContactSummary[]>(`/api/carddav/contacts?${params.toString()}`)
+}
+
+export function createContact(
+  addressBookHref: string,
+  payload: ContactWritePayload,
+): Promise<ContactSummary> {
+  const params = new URLSearchParams({ address_book_href: addressBookHref })
+  return requestJson<ContactSummary>(`/api/carddav/contacts?${params.toString()}`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateContact(
+  href: string,
+  etag: string,
+  payload: ContactWritePayload,
+): Promise<ContactSummary> {
+  const params = new URLSearchParams({ href, etag })
+  return requestJson<ContactSummary>(`/api/carddav/contact?${params.toString()}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteContact(
+  href: string,
+  etag: string,
+): Promise<ContactDeleteResponse> {
+  const params = new URLSearchParams({ href, etag })
+  return requestJson<ContactDeleteResponse>(`/api/carddav/contact?${params.toString()}`, {
+    method: 'DELETE',
+  })
 }

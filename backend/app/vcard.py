@@ -24,6 +24,17 @@ def _unescape(value: str) -> str:
     )
 
 
+def _escape(value: str) -> str:
+    return (
+        value.replace("\\", r"\\")
+        .replace("\r\n", r"\n")
+        .replace("\r", r"\n")
+        .replace("\n", r"\n")
+        .replace(";", r"\;")
+        .replace(",", r"\,")
+    )
+
+
 def _property(line: str) -> tuple[str, str] | None:
     if ":" not in line:
         return None
@@ -67,3 +78,24 @@ def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactSummary:
         emails=emails,
         phones=phones,
     )
+
+
+def build_vcard(
+    *,
+    uid: str,
+    formatted_name: str,
+    emails: list[str],
+    phones: list[str],
+) -> str:
+    lines = [
+        "BEGIN:VCARD",
+        "VERSION:4.0",
+        f"UID:{_escape(uid)}",
+        f"FN:{_escape(formatted_name.strip())}",
+    ]
+
+    lines.extend(f"EMAIL:{_escape(value.strip())}" for value in emails if value.strip())
+    lines.extend(f"TEL:{_escape(value.strip())}" for value in phones if value.strip())
+    lines.append("END:VCARD")
+
+    return "\r\n".join(lines) + "\r\n"
