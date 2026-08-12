@@ -157,7 +157,7 @@ Before Phase 4A is considered complete:
 - Frontend lint must pass.
 - Frontend production build must pass.
 
-Exact-head GitHub Actions run #23 passed at `b49e876988519cbd762eb01963112f56dec224e5`, including backend tests, both live-helper syntax checks, frontend lint, and the production frontend build. The subsequent documentation-only validation-evidence commit must also receive a successful CI run before merge.
+GitHub Actions run #23 passed at the Phase 4A code-bearing head `b49e876988519cbd762eb01963112f56dec224e5`, including backend tests, both live-helper syntax checks, frontend lint, and the production frontend build. Subsequent documentation-only validation-evidence commits must also receive a successful CI run before merge.
 
 ## Required live validation
 
