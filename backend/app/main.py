@@ -13,6 +13,7 @@ from .carddav import (
     CardDavNotFound,
 )
 from .config import get_settings
+from .vcf_routes import build_vcf_router
 from .models import (
     AddressBook,
     AuthSessionResponse,
@@ -45,6 +46,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Accept", "Content-Type"],
 )
+
+
+app.include_router(build_vcf_router(settings, session_store))
 
 
 def _require_session(request: Request) -> SessionRecord:

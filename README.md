@@ -4,7 +4,7 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Active development — Milestone 4 Phase 4A functional live validation complete; final exact-head CI pending
+**Status:** Active development — Milestone 4 Phase 4B VCF import/export implementation and validation
 
 Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
 
@@ -75,7 +75,8 @@ goreecloud-contacts/
 │   ├── milestone-1-carddav-poc.md
 │   ├── milestone-2-carddav-writes.md
 │   ├── milestone-3-authentication-isolation.md
-│   └── milestone-4-expanded-contact-model.md
+│   ├── milestone-4-expanded-contact-model.md
+│   └── milestone-4-vcf-import-export.md
 ├── .github/workflows/ci.yml
 ├── .env.example
 ├── .gitignore
@@ -139,13 +140,16 @@ goreecloud-contacts/
 - Passed browser create, Favorites filtering, expanded edit, unfavorite, and delete validation using a disposable synthetic contact while preserving the retained Jordan Example fixture.
 - Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after live mutation validation.
 - Corrected structured API validation-error presentation after browser validation exposed `[object Object]` for FastAPI/Pydantic detail arrays.
-- Final exact-head CI remains required before Phase 4A is closed and merged.
+- Final exact-head CI passed and Phase 4A was squash-merged to `main` as `1e2675390e06e9485bf664b53b0552c2e4575cd4`.
 
 #### Phase 4B — VCF Import and Export
 
-- Add single-contact and multi-contact/address-book export workflows.
-- Add VCF import preview and validation.
-- Require explicit destination address-book selection and conflict-safe creation.
+- Implement single-contact and full address-book VCF export using raw CardDAV vCard data.
+- Implement VCF 3.0/4.0 import preview and validation before any mutation.
+- Require explicit destination address-book selection and selected preview records.
+- Preserve unknown source properties where possible and generate a UID only when missing.
+- Keep actual import behind `CARDDAV_WRITE_ENABLED` and create new resources with `If-None-Match: *`.
+- Automated and isolated live Phase 4B validation remain required before merge.
 
 #### Phase 4C — Duplicate Detection and Merge
 
