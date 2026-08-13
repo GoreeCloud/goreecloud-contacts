@@ -94,6 +94,51 @@ export class ApiError extends Error {
   }
 }
 
+function formatErrorDetail(detail: unknown): string | null {
+  if (typeof detail === 'string') {
+    const normalized = detail.trim()
+    return normalized || null
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null
+        }
+
+        const record = item as Record<string, unknown>
+        const message = typeof record.msg === 'string' ? record.msg.trim() : ''
+        if (!message) {
+          return null
+        }
+
+        const location = Array.isArray(record.loc)
+          ? record.loc
+              .map((part) => String(part))
+              .filter((part) => !['body', 'query', 'path'].includes(part))
+              .join('.')
+          : ''
+
+        return location ? `${location}: ${message}` : message
+      })
+      .filter((message): message is string => Boolean(message))
+
+    if (messages.length) {
+      return messages.join(' ')
+    }
+  }
+
+  if (detail && typeof detail === 'object') {
+    const message = (detail as Record<string, unknown>).msg
+    if (typeof message === 'string' && message.trim()) {
+      return message.trim()
+    }
+  }
+
+  return null
+}
+
 async function requestJson<T>(
   path: string,
   init?: RequestInit,
@@ -111,10 +156,8 @@ async function requestJson<T>(
     let message = `Request failed with HTTP ${response.status}`
 
     try {
-      const payload = (await response.json()) as { detail?: string }
-      if (payload.detail) {
-        message = payload.detail
-      }
+      const payload = (await response.json()) as { detail?: unknown }
+      message = formatErrorDetail(payload.detail) ?? message
     } catch {
       // Keep the HTTP status message when the response is not JSON.
     }
