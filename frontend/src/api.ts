@@ -21,6 +21,25 @@ export type AddressBook = {
   display_name: string
 }
 
+export type StructuredName = {
+  family_name: string
+  given_name: string
+  additional_names: string
+  honorific_prefixes: string
+  honorific_suffixes: string
+}
+
+export type PostalAddress = {
+  types: string[]
+  po_box: string
+  extended_address: string
+  street_address: string
+  locality: string
+  region: string
+  postal_code: string
+  country: string
+}
+
 export type ContactSummary = {
   href: string
   etag: string | null
@@ -28,12 +47,36 @@ export type ContactSummary = {
   formatted_name: string
   emails: string[]
   phones: string[]
+  organization: string | null
+  title: string | null
+  categories: string[]
+  favorite: boolean
+  has_photo: boolean
+}
+
+export type ContactDetail = ContactSummary & {
+  structured_name: StructuredName
+  addresses: PostalAddress[]
+  birthday: string | null
+  websites: string[]
+  note: string | null
+  photo: string | null
 }
 
 export type ContactWritePayload = {
   formatted_name: string
+  structured_name: StructuredName
   emails: string[]
   phones: string[]
+  organization: string | null
+  title: string | null
+  addresses: PostalAddress[]
+  birthday: string | null
+  websites: string[]
+  note: string | null
+  categories: string[]
+  favorite: boolean
+  photo: string | null
 }
 
 export type ContactDeleteResponse = {
@@ -49,6 +92,51 @@ export class ApiError extends Error {
     this.name = 'ApiError'
     this.status = status
   }
+}
+
+function formatErrorDetail(detail: unknown): string | null {
+  if (typeof detail === 'string') {
+    const normalized = detail.trim()
+    return normalized || null
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => {
+        if (!item || typeof item !== 'object') {
+          return null
+        }
+
+        const record = item as Record<string, unknown>
+        const message = typeof record.msg === 'string' ? record.msg.trim() : ''
+        if (!message) {
+          return null
+        }
+
+        const location = Array.isArray(record.loc)
+          ? record.loc
+              .map((part) => String(part))
+              .filter((part) => !['body', 'query', 'path'].includes(part))
+              .join('.')
+          : ''
+
+        return location ? `${location}: ${message}` : message
+      })
+      .filter((message): message is string => Boolean(message))
+
+    if (messages.length) {
+      return messages.join(' ')
+    }
+  }
+
+  if (detail && typeof detail === 'object') {
+    const message = (detail as Record<string, unknown>).msg
+    if (typeof message === 'string' && message.trim()) {
+      return message.trim()
+    }
+  }
+
+  return null
 }
 
 async function requestJson<T>(
@@ -68,10 +156,8 @@ async function requestJson<T>(
     let message = `Request failed with HTTP ${response.status}`
 
     try {
-      const payload = (await response.json()) as { detail?: string }
-      if (payload.detail) {
-        message = payload.detail
-      }
+      const payload = (await response.json()) as { detail?: unknown }
+      message = formatErrorDetail(payload.detail) ?? message
     } catch {
       // Keep the HTTP status message when the response is not JSON.
     }
@@ -114,12 +200,17 @@ export function getContacts(addressBookHref: string): Promise<ContactSummary[]> 
   return requestJson<ContactSummary[]>(`/api/carddav/contacts?${params.toString()}`)
 }
 
+export function getContact(href: string): Promise<ContactDetail> {
+  const params = new URLSearchParams({ href })
+  return requestJson<ContactDetail>(`/api/carddav/contact?${params.toString()}`)
+}
+
 export function createContact(
   addressBookHref: string,
   payload: ContactWritePayload,
-): Promise<ContactSummary> {
+): Promise<ContactDetail> {
   const params = new URLSearchParams({ address_book_href: addressBookHref })
-  return requestJson<ContactSummary>(`/api/carddav/contacts?${params.toString()}`, {
+  return requestJson<ContactDetail>(`/api/carddav/contacts?${params.toString()}`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -129,9 +220,9 @@ export function updateContact(
   href: string,
   etag: string,
   payload: ContactWritePayload,
-): Promise<ContactSummary> {
+): Promise<ContactDetail> {
   const params = new URLSearchParams({ href, etag })
-  return requestJson<ContactSummary>(`/api/carddav/contact?${params.toString()}`, {
+  return requestJson<ContactDetail>(`/api/carddav/contact?${params.toString()}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })

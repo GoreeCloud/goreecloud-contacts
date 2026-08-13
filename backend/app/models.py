@@ -1,6 +1,7 @@
 from datetime import datetime
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -31,6 +32,25 @@ class AddressBook(BaseModel):
     display_name: str
 
 
+class StructuredName(BaseModel):
+    family_name: str = Field(default="", max_length=512)
+    given_name: str = Field(default="", max_length=512)
+    additional_names: str = Field(default="", max_length=512)
+    honorific_prefixes: str = Field(default="", max_length=512)
+    honorific_suffixes: str = Field(default="", max_length=512)
+
+
+class PostalAddress(BaseModel):
+    types: list[str] = Field(default_factory=list, max_length=20)
+    po_box: str = Field(default="", max_length=512)
+    extended_address: str = Field(default="", max_length=1024)
+    street_address: str = Field(default="", max_length=2048)
+    locality: str = Field(default="", max_length=512)
+    region: str = Field(default="", max_length=512)
+    postal_code: str = Field(default="", max_length=128)
+    country: str = Field(default="", max_length=512)
+
+
 class ContactSummary(BaseModel):
     href: str
     etag: str | None = None
@@ -38,12 +58,56 @@ class ContactSummary(BaseModel):
     formatted_name: str
     emails: list[str] = Field(default_factory=list)
     phones: list[str] = Field(default_factory=list)
+    organization: str | None = None
+    title: str | None = None
+    categories: list[str] = Field(default_factory=list)
+    favorite: bool = False
+    has_photo: bool = False
+
+
+class ContactDetail(ContactSummary):
+    structured_name: StructuredName = Field(default_factory=StructuredName)
+    addresses: list[PostalAddress] = Field(default_factory=list)
+    birthday: str | None = None
+    websites: list[str] = Field(default_factory=list)
+    note: str | None = None
+    photo: str | None = None
 
 
 class ContactWriteRequest(BaseModel):
     formatted_name: str = Field(min_length=1, max_length=512)
+    structured_name: StructuredName = Field(default_factory=StructuredName)
     emails: list[str] = Field(default_factory=list, max_length=50)
     phones: list[str] = Field(default_factory=list, max_length=50)
+    organization: str | None = Field(default=None, max_length=1024)
+    title: str | None = Field(default=None, max_length=1024)
+    addresses: list[PostalAddress] = Field(default_factory=list, max_length=20)
+    birthday: str | None = Field(default=None, max_length=64)
+    websites: list[str] = Field(default_factory=list, max_length=50)
+    note: str | None = Field(default=None, max_length=10000)
+    categories: list[str] = Field(default_factory=list, max_length=100)
+    favorite: bool = False
+    photo: str | None = Field(default=None, max_length=2_000_000)
+
+    @field_validator("photo")
+    @classmethod
+    def validate_photo_reference(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+
+        normalized = value.strip()
+        if not normalized:
+            return None
+
+        parsed = urlparse(normalized)
+        if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(
+                "Phase 4A photo writes require an HTTP(S) URI reference. Embedded data "
+                "URIs are not accepted because the current Radicale/vobject storage path "
+                "does not preserve them losslessly."
+            )
+
+        return normalized
 
 
 class ContactDeleteResponse(BaseModel):
