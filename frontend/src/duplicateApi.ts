@@ -34,7 +34,6 @@ export type DuplicateMergePreview = {
   duplicate: ContactDetail
   proposed: ContactWritePayload
   conflicts: DuplicateFieldConflict[]
-  passthrough_properties_preserved: boolean
 }
 
 export type DuplicateMergeResult = {
