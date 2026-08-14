@@ -187,23 +187,19 @@ async def merge_duplicate_contacts(
 
     try:
         await client.delete_contact(request.duplicate_href, duplicate_etag)
-    except CardDavError as delete_error:
-        if updated.etag:
-            try:
-                await client._request(
-                    "PUT",
-                    primary_url,
-                    body=primary_raw,
-                    headers={"If-Match": updated.etag},
-                    content_type="text/vcard; charset=utf-8",
-                )
-            except CardDavError as rollback_error:
-                raise CardDavError(
-                    "Duplicate deletion failed after the primary contact was updated, and "
-                    "automatic rollback could not be completed. The duplicate was not "
-                    "deleted; review both contacts before retrying."
-                ) from rollback_error
-        raise delete_error
+    except CardDavConflict as exc:
+        raise CardDavConflict(
+            "The merged survivor was saved, but the duplicate changed before it could be "
+            "deleted. The duplicate was not deleted. Refresh both contacts and review the "
+            "remaining duplicate before taking another action."
+        ) from exc
+    except CardDavError as exc:
+        raise CardDavError(
+            "The merged survivor was saved, but deletion of the duplicate could not be "
+            "confirmed. No automatic rollback was attempted because the CardDAV delete "
+            "outcome may be ambiguous after a transport or server failure. Refresh the "
+            "address book and inspect both resources before retrying."
+        ) from exc
 
     return DuplicateMergeResponse(
         merged=updated,
