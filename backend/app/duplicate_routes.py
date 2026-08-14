@@ -98,7 +98,6 @@ async def preview_duplicate_merge(
         duplicate=duplicate,
         proposed=proposal.payload,
         conflicts=proposal.conflicts,
-        passthrough_properties_preserved=True,
     )
 
 
