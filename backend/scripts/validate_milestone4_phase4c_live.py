@@ -469,6 +469,57 @@ def _write(client: httpx.Client) -> None:
         _fail("Stale duplicate ETag rejection occurred after the primary contact changed.")
     _ok("Stale duplicate ETag rejects the merge before the survivor is mutated")
 
+    reset_duplicate = _expect_status(
+        client.delete(
+            "/api/carddav/contact",
+            params={
+                "href": updated_duplicate["href"],
+                "etag": updated_duplicate["etag"],
+            },
+        ),
+        200,
+        "Reset stale-ETag duplicate fixture",
+    )
+    if reset_duplicate.get("deleted") is not True:
+        _fail(
+            "Reset of the disposable stale-ETag duplicate returned an "
+            f"unexpected response: {reset_duplicate!r}"
+        )
+
+    restored_duplicate = _expect_status(
+        client.post(
+            "/api/carddav/import",
+            json={
+                "address_book_href": PRIMARY_BOOK_HREF,
+                "vcf_text": _fixture_vcf(),
+                "selected_indices": [1],
+            },
+        ),
+        201,
+        "Restore raw duplicate fixture after stale-ETag test",
+    )
+    restored_items = restored_duplicate.get("items") or []
+    if (
+        restored_duplicate.get("imported_count") != 1
+        or len(restored_items) != 1
+        or restored_items[0].get("uid") != DUPLICATE_UID
+    ):
+        _fail(
+            "Raw duplicate fixture was not restored as expected after the "
+            f"stale-ETag test: {restored_duplicate!r}"
+        )
+
+    refreshed_contacts = _contacts(client)
+    _require_jordan(refreshed_contacts)
+    primary = _by_uid(refreshed_contacts, PRIMARY_UID)
+    duplicate = _by_uid(refreshed_contacts, DUPLICATE_UID)
+    if primary is None or duplicate is None or len(refreshed_contacts) != 3:
+        _fail(
+            "Expected Jordan plus the restored Phase 4C duplicate pair before "
+            "the reviewed merge."
+        )
+    _ok("Raw duplicate fixture was restored after the stale-ETag mutation")
+
     fresh = _preview(client, primary["href"], duplicate["href"])
     _validate_preview(fresh)
     merged_payload = deepcopy(fresh["proposed"])
