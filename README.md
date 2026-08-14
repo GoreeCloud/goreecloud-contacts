@@ -144,12 +144,16 @@ goreecloud-contacts/
 
 #### Phase 4B — VCF Import and Export
 
-- Implement single-contact and full address-book VCF export using raw CardDAV vCard data.
-- Implement VCF 3.0/4.0 import preview and validation before any mutation.
-- Require explicit destination address-book selection and selected preview records.
-- Preserve unknown source properties where possible and generate a UID only when missing.
-- Keep actual import behind `CARDDAV_WRITE_ENABLED` and create new resources with `If-None-Match: *`.
-- Automated and isolated live Phase 4B validation remain required before merge.
+- Implemented single-contact and full address-book VCF export using raw CardDAV vCard data.
+- Implemented VCF 3.0/4.0 import preview and validation before any mutation.
+- Required explicit destination address-book selection and selected preview records.
+- Preserved unknown source properties where possible and generated a UID only when missing.
+- Kept actual import behind `CARDDAV_WRITE_ENABLED` and created new resources with `If-None-Match: *`.
+- Passed 27 backend tests, frontend lint, frontend production build, and implementation-head GitHub Actions CI.
+- Passed isolated read-only export/preview, unsupported-version rejection, malformed-input rejection, controlled synthetic import, raw VCF round-trip preservation, and cleanup validation.
+- Confirmed the tested unknown `X-GOREECLOUD-TEST` property and source UID survived import through Radicale and subsequent raw export.
+- Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after controlled validation and confirmed Jordan Example remained the only retained test contact.
+- Final exact-head CI remains required after this validation-documentation update before merge.
 
 #### Phase 4C — Duplicate Detection and Merge
 

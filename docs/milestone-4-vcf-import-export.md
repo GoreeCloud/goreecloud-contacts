@@ -2,7 +2,7 @@
 
 ## Status
 
-**Implementation in progress. Automated and live validation are required before merge.**
+**Implementation and isolated live acceptance are complete. Final exact-head CI is required before merge.**
 
 Phase 4B adds portable VCF workflows to GoreeCloud Contacts without changing the authoritative-data model. Radicale/CardDAV remains authoritative; GoreeCloud Contacts does not introduce a second contacts database.
 
@@ -101,3 +101,31 @@ Controlled write validation should temporarily enable the write gate and prove:
 - restoration of `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800`.
 
 Production family contacts remain outside Phase 4B development validation.
+
+## Live acceptance results — August 14, 2026
+
+Phase 4B isolated live acceptance passed using only the `goreecloud-contacts-test` identity, the `GoreeCloud Contacts Test` address book, the retained Jordan Example fixture, and disposable synthetic VCF data.
+
+Read-only validation passed with `CARDDAV_WRITE_ENABLED=false`:
+
+- Single-contact export returned the retained Jordan Example raw vCard 4.0 record with the expected UID, name, email address, and telephone number.
+- Full address-book export returned the isolated test address book with Jordan Example exactly once.
+- A synthetic vCard 4.0 record containing the unknown `X-GOREECLOUD-TEST` extension property previewed successfully as one valid record without writing to CardDAV.
+- A synthetic vCard 2.1 record was rejected as unsupported; Phase 4B accepts only vCard 3.0 and 4.0.
+- A malformed vCard missing `END:VCARD` was rejected before import.
+- Preview and export remained available while actual import remained blocked by the write safety gate.
+
+Controlled write validation then temporarily enabled `CARDDAV_WRITE_ENABLED=true` only for the isolated test environment:
+
+- The synthetic `Phase 4B Preview Test` record was previewed as one valid selected record.
+- Import created exactly one new contact in the explicit `GoreeCloud Contacts Test` destination.
+- The address-book contact count changed from one to two while the retained Jordan Example fixture remained unchanged.
+- Re-export of the imported contact preserved the original UID `goreecloud-phase4b-preview-001`.
+- Re-export also preserved the unknown source property `X-GOREECLOUD-TEST:preview-only`, confirming raw VCF round-trip preservation through GoreeCloud Contacts and Radicale for the tested extension.
+- The disposable imported contact was deleted after verification, returning the address book to exactly one retained Jordan Example contact.
+- `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` were restored.
+- The backend was restarted and the final signed-in browser state confirmed read-only safety mode with Jordan Example as the only stored contact.
+
+Automated validation before live acceptance also passed with 27 backend tests, frontend lint with zero warnings and zero errors, and a successful frontend production build. GitHub Actions passed on implementation head `2557c51`; because this documentation update changes the branch head, final exact-head CI remains required before merge.
+
+Production family contacts were not used during Phase 4B development or validation.
