@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 import httpx
 import pytest
 
-from app.carddav import CardDavConflict
+from app.carddav import CardDavConflict, CardDavError
 from app.duplicate_models import DuplicateMergeRequest
 from app.duplicate_routes import merge_duplicate_contacts
 from app.duplicates import propose_duplicate_merge
@@ -13,7 +13,7 @@ from app.vcard import parse_vcard
 
 
 class FakeCardDavClient:
-    def __init__(self) -> None:
+    def __init__(self, *, fail_delete: bool = False) -> None:
         self.raw = {
             "/test-user/contacts/primary.vcf": (
                 "BEGIN:VCARD\r\n"
@@ -40,6 +40,7 @@ class FakeCardDavClient:
         }
         self.puts: list[tuple[str, dict[str, str] | None, str | None]] = []
         self.deletes: list[tuple[str, str]] = []
+        self.fail_delete = fail_delete
 
     async def _authorized_address_book_url(self, href: str) -> str:
         assert href == "/test-user/contacts/"
@@ -94,6 +95,8 @@ class FakeCardDavClient:
     async def delete_contact(self, href: str, etag: str) -> None:
         if etag != self.etags[href]:
             raise CardDavConflict("stale duplicate")
+        if self.fail_delete:
+            raise CardDavError("transport outcome unknown")
         self.deletes.append((href, etag))
         del self.raw[href]
         del self.etags[href]
@@ -157,4 +160,16 @@ def test_stale_duplicate_etag_aborts_before_primary_write() -> None:
         )
 
     assert client.puts == []
+    assert client.deletes == []
+
+
+def test_ambiguous_delete_failure_keeps_merged_survivor_and_duplicate_for_review() -> None:
+    client = FakeCardDavClient(fail_delete=True)
+
+    with pytest.raises(CardDavError, match="No automatic rollback was attempted"):
+        asyncio.run(merge_duplicate_contacts(client, _request(client)))
+
+    assert len(client.puts) == 1
+    assert "TEL:+1-555-0100" in client.raw["/test-user/contacts/primary.vcf"]
+    assert "/test-user/contacts/duplicate.vcf" in client.raw
     assert client.deletes == []
