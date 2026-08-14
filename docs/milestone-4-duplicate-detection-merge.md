@@ -59,7 +59,9 @@ The merged survivor is rebuilt from the reviewed structured payload while:
 - Carrying forward unsupported raw property lines from both reviewed source vCards where possible.
 - Deduplicating identical passthrough lines.
 
-This is a best-effort interoperability boundary, not a claim that every possible vCard construct is losslessly mergeable. Grouped properties and companion metadata can have relationships that are not fully represented by the current structured parser. Phase 4C must not claim complete lossless preservation of arbitrary grouped or vendor-specific metadata.
+This is a best-effort interoperability boundary, not a claim that every possible vCard construct is losslessly mergeable. Grouped properties, parameters on modeled properties, and companion metadata can have relationships that are not fully represented by the current structured parser. Phase 4C must not claim complete lossless preservation of arbitrary grouped or vendor-specific metadata.
+
+Embedded `data:image/...` PHOTO content remains outside the current lossless structured-write boundary. A duplicate pair containing embedded photo data must not be merged through Phase 4C unless that limitation is explicitly handled; HTTP(S) photo references remain the supported structured photo-write model.
 
 Raw VCF export remains the preferred portability path for retaining source data outside the understood application field model.
 
@@ -77,12 +79,14 @@ Before any mutation, the backend:
 If both ETags still match, the backend:
 
 1. Writes the reviewed merged vCard to the primary resource using `If-Match` with the reviewed primary ETag.
-2. Re-reads the primary resource to obtain the newly stored contact and ETag.
+2. Re-reads the primary resource to confirm the merged survivor and obtain its new ETag.
 3. Deletes the superseded duplicate resource using `If-Match` with the reviewed duplicate ETag.
 
 The duplicate is therefore never deleted before the merged survivor is confirmed written.
 
-If duplicate deletion fails after the survivor update, the backend attempts to restore the original primary raw vCard using the newly returned survivor ETag. If that rollback also fails, the operation returns an explicit error and does not conceal the partial state; both contacts must be reviewed before retrying.
+If the duplicate changes before deletion, the survivor remains safely merged and the duplicate is left in place for a fresh review. If a transport or server failure makes the DELETE outcome ambiguous, Phase 4C deliberately does not roll the survivor backward: a rollback could discard merged information if the server actually completed the deletion but the success response was lost. Instead, the operation returns an explicit partial-state error and requires the address book to be refreshed and both resources inspected before any retry.
+
+This failure model prefers duplicated information over possible information loss.
 
 ## API surface
 
@@ -121,6 +125,7 @@ Before Phase 4C can be considered complete, automated validation must prove at m
 - Raw passthrough properties from both source vCards are preserved where supported by the Phase 4C raw merge strategy.
 - Duplicate merge writes use current ETags and stale review state is rejected before mutation.
 - The duplicate resource is deleted only after the survivor update succeeds.
+- An ambiguous duplicate-delete failure does not roll the merged survivor backward or silently claim completion.
 - Backend test suite, frontend lint, and frontend production build pass on the exact final pull-request head.
 
 ## Required isolated live acceptance
