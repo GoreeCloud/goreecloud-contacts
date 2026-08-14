@@ -40,7 +40,6 @@ class DuplicateMergePreviewResponse(BaseModel):
     duplicate: ContactDetail
     proposed: ContactWriteRequest
     conflicts: list[DuplicateFieldConflict] = Field(default_factory=list)
-    passthrough_properties_preserved: bool = True
 
 
 class DuplicateMergeRequest(BaseModel):
