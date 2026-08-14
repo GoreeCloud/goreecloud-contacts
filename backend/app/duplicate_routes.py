@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from posixpath import dirname
 from typing import Annotated
 from uuid import uuid4

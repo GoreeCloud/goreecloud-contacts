@@ -3,6 +3,9 @@ from urllib.parse import urlparse
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
 
 from app.carddav import CardDavConflict, CardDavError
 from app.duplicate_models import DuplicateMergeRequest
@@ -173,3 +176,14 @@ def test_ambiguous_delete_failure_keeps_merged_survivor_and_duplicate_for_review
     assert "TEL:+1-555-0100" in client.raw["/test-user/contacts/primary.vcf"]
     assert "/test-user/contacts/duplicate.vcf" in client.raw
     assert client.deletes == []
+
+
+def test_duplicate_scan_uses_authenticated_session_dependency() -> None:
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/carddav/duplicates",
+            params={"address_book_href": "/test-user/contacts/"},
+        )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication is required."}
