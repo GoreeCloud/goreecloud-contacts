@@ -16,7 +16,12 @@ from app.vcard import parse_vcard
 
 
 class FakeCardDavClient:
-    def __init__(self, *, fail_delete: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        fail_delete: bool = False,
+        conflict_delete: bool = False,
+    ) -> None:
         self.raw = {
             "/test-user/contacts/primary.vcf": (
                 "BEGIN:VCARD\r\n"
@@ -44,6 +49,7 @@ class FakeCardDavClient:
         self.puts: list[tuple[str, dict[str, str] | None, str | None]] = []
         self.deletes: list[tuple[str, str]] = []
         self.fail_delete = fail_delete
+        self.conflict_delete = conflict_delete
 
     async def _authorized_address_book_url(self, href: str) -> str:
         assert href == "/test-user/contacts/"
@@ -98,6 +104,8 @@ class FakeCardDavClient:
     async def delete_contact(self, href: str, etag: str) -> None:
         if etag != self.etags[href]:
             raise CardDavConflict("stale duplicate")
+        if self.conflict_delete:
+            raise CardDavConflict("duplicate changed after survivor write")
         if self.fail_delete:
             raise CardDavError("transport outcome unknown")
         self.deletes.append((href, etag))
@@ -108,6 +116,7 @@ class FakeCardDavClient:
 def _request(
     client: FakeCardDavClient,
     *,
+    primary_etag: str = '"primary-etag"',
     duplicate_etag: str = '"duplicate-etag"',
 ) -> DuplicateMergeRequest:
     primary = parse_vcard(
@@ -124,7 +133,7 @@ def _request(
     return DuplicateMergeRequest(
         address_book_href="/test-user/contacts/",
         primary_href=primary.href,
-        primary_etag='"primary-etag"',
+        primary_etag=primary_etag,
         duplicate_href=duplicate.href,
         duplicate_etag=duplicate_etag,
         merged=proposal.payload,
@@ -151,6 +160,23 @@ def test_merge_updates_primary_conditionally_preserves_passthrough_and_deletes_d
     assert "/test-user/contacts/duplicate.vcf" not in client.raw
 
 
+def test_stale_primary_etag_aborts_before_any_write() -> None:
+    client = FakeCardDavClient()
+
+    with pytest.raises(CardDavConflict, match="primary contact changed"):
+        asyncio.run(
+            merge_duplicate_contacts(
+                client,
+                _request(client, primary_etag='"stale-primary"'),
+            )
+        )
+
+    assert client.puts == []
+    assert client.deletes == []
+    assert "/test-user/contacts/primary.vcf" in client.raw
+    assert "/test-user/contacts/duplicate.vcf" in client.raw
+
+
 def test_stale_duplicate_etag_aborts_before_primary_write() -> None:
     client = FakeCardDavClient()
 
@@ -163,6 +189,18 @@ def test_stale_duplicate_etag_aborts_before_primary_write() -> None:
         )
 
     assert client.puts == []
+    assert client.deletes == []
+
+
+def test_delete_conflict_keeps_merged_survivor_and_duplicate_for_fresh_review() -> None:
+    client = FakeCardDavClient(conflict_delete=True)
+
+    with pytest.raises(CardDavConflict, match="duplicate changed before it could be deleted"):
+        asyncio.run(merge_duplicate_contacts(client, _request(client)))
+
+    assert len(client.puts) == 1
+    assert "TEL:+1-555-0100" in client.raw["/test-user/contacts/primary.vcf"]
+    assert "/test-user/contacts/duplicate.vcf" in client.raw
     assert client.deletes == []
 
 
