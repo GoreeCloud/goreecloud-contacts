@@ -4,7 +4,7 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Active development — Milestone 4 Phase 4A functional live validation complete; final exact-head CI pending
+**Status:** Active development — Milestone 4 Phase 4B VCF import/export implementation and validation
 
 Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
 
@@ -75,7 +75,8 @@ goreecloud-contacts/
 │   ├── milestone-1-carddav-poc.md
 │   ├── milestone-2-carddav-writes.md
 │   ├── milestone-3-authentication-isolation.md
-│   └── milestone-4-expanded-contact-model.md
+│   ├── milestone-4-expanded-contact-model.md
+│   └── milestone-4-vcf-import-export.md
 ├── .github/workflows/ci.yml
 ├── .env.example
 ├── .gitignore
@@ -139,13 +140,20 @@ goreecloud-contacts/
 - Passed browser create, Favorites filtering, expanded edit, unfavorite, and delete validation using a disposable synthetic contact while preserving the retained Jordan Example fixture.
 - Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after live mutation validation.
 - Corrected structured API validation-error presentation after browser validation exposed `[object Object]` for FastAPI/Pydantic detail arrays.
-- Final exact-head CI remains required before Phase 4A is closed and merged.
+- Final exact-head CI passed and Phase 4A was squash-merged to `main` as `1e2675390e06e9485bf664b53b0552c2e4575cd4`.
 
 #### Phase 4B — VCF Import and Export
 
-- Add single-contact and multi-contact/address-book export workflows.
-- Add VCF import preview and validation.
-- Require explicit destination address-book selection and conflict-safe creation.
+- Implemented single-contact and full address-book VCF export using raw CardDAV vCard data.
+- Implemented VCF 3.0/4.0 import preview and validation before any mutation.
+- Required explicit destination address-book selection and selected preview records.
+- Preserved unknown source properties where possible and generated a UID only when missing.
+- Kept actual import behind `CARDDAV_WRITE_ENABLED` and created new resources with `If-None-Match: *`.
+- Passed 27 backend tests, frontend lint, frontend production build, and implementation-head GitHub Actions CI.
+- Passed isolated read-only export/preview, unsupported-version rejection, malformed-input rejection, controlled synthetic import, raw VCF round-trip preservation, and cleanup validation.
+- Confirmed the tested unknown `X-GOREECLOUD-TEST` property and source UID survived import through Radicale and subsequent raw export.
+- Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after controlled validation and confirmed Jordan Example remained the only retained test contact.
+- Final exact-head CI remains required after this validation-documentation update before merge.
 
 #### Phase 4C — Duplicate Detection and Merge
 

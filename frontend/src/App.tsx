@@ -23,6 +23,8 @@ import {
   type StructuredName,
 } from './api.ts'
 
+import VcfTools from './VcfTools.tsx'
+
 import './milestone2.css'
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error'
@@ -411,6 +413,19 @@ export default function App() {
                 test or production environment.
               </p>
             </div>
+          ) : null}
+
+          {authenticated && selectedBook ? (
+            <VcfTools
+              selectedBookHref={selectedBook}
+              selectedBookName={
+                addressBooks.find((book) => book.href === selectedBook)?.display_name ??
+                'Address book'
+              }
+              contacts={contacts}
+              writeEnabled={writeEnabled}
+              onImported={() => setRefreshCounter((value) => value + 1)}
+            />
           ) : null}
 
           {error ? (
@@ -979,7 +994,7 @@ function ContactEditor({
           <label>
             Photo URI
             <input
-              placeholder="data:image/... or approved URI"
+              placeholder="https://example.com/contact-photo.jpg"
               value={photo}
               onChange={(event) => setPhoto(event.target.value)}
             />
