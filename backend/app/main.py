@@ -62,6 +62,9 @@ app = FastAPI(
         "user-reviewed duplicate detection/merge, and conditional write protection."
     ),
     lifespan=_lifespan,
+    docs_url="/docs" if settings.api_documentation_enabled else None,
+    redoc_url="/redoc" if settings.api_documentation_enabled else None,
+    openapi_url="/openapi.json" if settings.api_documentation_enabled else None,
 )
 
 app.add_middleware(
