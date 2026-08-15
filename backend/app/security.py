@@ -9,7 +9,7 @@ UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 
 def normalize_origin(value: str) -> str | None:
-    """Return a normalized HTTP(S) origin or None for an invalid origin value."""
+    """Return the HTTP(S) origin portion of a URL-like value, or None when invalid."""
 
     candidate = value.strip()
     if not candidate or candidate == "null":
@@ -25,7 +25,7 @@ def normalize_origin(value: str) -> str | None:
 
 
 def configured_frontend_origin(value: str) -> str | None:
-    """Validate that a configured frontend value is an origin, not a full URL path."""
+    """Validate that a value is an origin, not a full URL path."""
 
     candidate = value.strip()
     parsed = urlsplit(candidate)
@@ -46,7 +46,7 @@ def request_origin_is_trusted(request: Request, expected_origin: str) -> bool:
 
     origin_header = request.headers.get("origin")
     if origin_header is not None:
-        return normalize_origin(origin_header) == trusted
+        return configured_frontend_origin(origin_header) == trusted
 
     referer_header = request.headers.get("referer")
     if referer_header is None:
