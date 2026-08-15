@@ -119,6 +119,19 @@ def test_sqlite_session_files_are_owner_only(tmp_path) -> None:
             assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
+def test_session_store_healthcheck_detects_usable_and_broken_sqlite(tmp_path) -> None:
+    database = tmp_path / "sessions.sqlite3"
+    store = SqliteSessionStore(3600, str(database), [_key()])
+
+    assert store.healthcheck() is True
+
+    with sqlite3.connect(database) as connection:
+        connection.execute("DROP TABLE sessions")
+        connection.commit()
+
+    assert store.healthcheck() is False
+
+
 def test_session_store_factory_preserves_memory_default_and_supports_sqlite(tmp_path) -> None:
     memory = create_session_store(
         backend="memory",
@@ -128,6 +141,7 @@ def test_session_store_factory_preserves_memory_default_and_supports_sqlite(tmp_
     )
     memory_record = memory.create(username="memory-user", password="memory-password")
     assert memory.get(memory_record.token) is not None
+    assert memory.healthcheck() is True
 
     sqlite_store = create_session_store(
         backend="sqlite",
@@ -137,3 +151,4 @@ def test_session_store_factory_preserves_memory_default_and_supports_sqlite(tmp_
     )
     sqlite_record = sqlite_store.create(username="sqlite-user", password="sqlite-password")
     assert sqlite_store.get(sqlite_record.token) is not None
+    assert sqlite_store.healthcheck() is True
