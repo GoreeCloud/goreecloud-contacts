@@ -40,7 +40,16 @@ jobs:
           pip-audit==2.10.1
 
       - name: Audit backend dependencies
-        run: python -m pip_audit . --progress-spinner off
+        # Temporary, scope-limited exception:
+        # PYSEC-2026-3552 affects cryptography PKCS#7 EnvelopedData decryption APIs.
+        # GoreeCloud Contacts uses Fernet/MultiFernet only, and an automated source
+        # guard rejects use/import of the affected PKCS#7 decrypt surface. Remove
+        # this exception and upgrade cryptography when a fixed stable release is
+        # available.
+        run: >-
+          python -m pip_audit .
+          --progress-spinner off
+          --ignore-vuln PYSEC-2026-3552
 
       - name: Validate live helper syntax
         run: >-
