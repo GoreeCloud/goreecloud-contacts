@@ -5,6 +5,10 @@ from pydantic import BaseModel, Field
 from .models import ContactDetail, ContactSummary, ContactWriteRequest
 
 
+MAX_RESOURCE_HREF_CHARS = 4096
+MAX_ETAG_CHARS = 1024
+
+
 class DuplicateSignal(BaseModel):
     kind: Literal["uid", "email", "phone", "name", "organization", "title"]
     value: str
@@ -24,9 +28,9 @@ class DuplicateScanResponse(BaseModel):
 
 
 class DuplicateMergePreviewRequest(BaseModel):
-    address_book_href: str = Field(min_length=1)
-    primary_href: str = Field(min_length=1)
-    duplicate_href: str = Field(min_length=1)
+    address_book_href: str = Field(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)
+    primary_href: str = Field(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)
+    duplicate_href: str = Field(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)
 
 
 class DuplicateFieldConflict(BaseModel):
@@ -43,11 +47,11 @@ class DuplicateMergePreviewResponse(BaseModel):
 
 
 class DuplicateMergeRequest(BaseModel):
-    address_book_href: str = Field(min_length=1)
-    primary_href: str = Field(min_length=1)
-    primary_etag: str = Field(min_length=1)
-    duplicate_href: str = Field(min_length=1)
-    duplicate_etag: str = Field(min_length=1)
+    address_book_href: str = Field(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)
+    primary_href: str = Field(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)
+    primary_etag: str = Field(min_length=1, max_length=MAX_ETAG_CHARS)
+    duplicate_href: str = Field(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)
+    duplicate_etag: str = Field(min_length=1, max_length=MAX_ETAG_CHARS)
     merged: ContactWriteRequest
 
 
