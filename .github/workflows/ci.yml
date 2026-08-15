@@ -127,8 +127,11 @@ jobs:
       - name: Validate production Compose definition
         run: |
           cp .env.example .env
-          docker compose -f docker/compose.production.yml config >/dev/null
-          rm .env
+          COMPOSE_SECRET="$RUNNER_TEMP/goreecloud-contacts-compose-secret"
+          printf '%s\n' 'synthetic-compose-secret-placeholder' > "$COMPOSE_SECRET"
+          GOREECLOUD_CONTACTS_SESSION_SECRET_PATH="$COMPOSE_SECRET" \
+            docker compose -f docker/compose.production.yml config >/dev/null
+          rm .env "$COMPOSE_SECRET"
 
       - name: Build production image
         run: docker build -f docker/Dockerfile -t goreecloud-contacts:ci .
@@ -140,7 +143,13 @@ jobs:
 
       - name: Start hardened production-shaped container
         run: |
-          SESSION_KEY="$(docker run --rm --entrypoint python goreecloud-contacts:ci -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+          SESSION_SECRET="$RUNNER_TEMP/goreecloud-contacts-session-encryption-keys"
+          docker run --rm --entrypoint python goreecloud-contacts:ci \
+            -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' \
+            > "$SESSION_SECRET"
+          sudo chown 10001:10001 "$SESSION_SECRET"
+          sudo chmod 0400 "$SESSION_SECRET"
+
           docker run -d \
             --name contacts-runtime \
             --no-healthcheck \
@@ -150,6 +159,7 @@ jobs:
             --cap-drop ALL \
             --security-opt no-new-privileges \
             --pids-limit 256 \
+            --mount type=bind,src="$SESSION_SECRET",dst=/run/secrets/session-encryption-keys,readonly \
             -e APP_ENV=production \
             -e FRONTEND_ORIGIN=https://contacts.goreecloud.com \
             -e CARDDAV_BASE_URL=https://carddav.invalid.example \
@@ -158,7 +168,7 @@ jobs:
             -e SESSION_COOKIE_SECURE=true \
             -e SESSION_STORE_BACKEND=sqlite \
             -e SESSION_DB_PATH=/data/sessions.sqlite3 \
-            -e SESSION_ENCRYPTION_KEYS="$SESSION_KEY" \
+            -e SESSION_ENCRYPTION_KEYS_FILE=/run/secrets/session-encryption-keys \
             -e CSRF_ORIGIN_CHECK_ENABLED=true \
             -p 127.0.0.1:18080:8000 \
             goreecloud-contacts:ci
@@ -182,6 +192,8 @@ jobs:
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/openapi.json)" = "404"
           test "$(docker exec contacts-runtime id -u)" = "10001"
           test "$(docker exec contacts-runtime id -g)" = "10001"
+          ! docker exec contacts-runtime env | grep -q '^SESSION_ENCRYPTION_KEYS='
+          test "$(docker exec contacts-runtime sh -c 'stat -c %a /run/secrets/session-encryption-keys')" = "400"
 
       - name: Show runtime logs
         if: always()
