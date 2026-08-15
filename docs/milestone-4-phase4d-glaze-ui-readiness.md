@@ -8,7 +8,7 @@ It is deliberately a presentation and interface-resilience layer. It does not ch
 
 ## Glaze UI foundation
 
-The frontend now loads `src/glaze.css` after the existing application styles. The file provides a shared token layer for:
+The frontend loads `src/glaze.css` after the existing application styles. The file provides a shared token layer for:
 
 - light and dark appearance through operating-system preference;
 - layered and selectively translucent surfaces;
@@ -39,11 +39,29 @@ The Glaze layer overrides that behavior. On small screens, the sidebar becomes a
 
 ## Accessibility and interaction controls
 
-The Glaze layer provides explicit `:focus-visible` treatment for buttons, links, inputs, textareas, and selects.
+The Glaze layer provides explicit `:focus-visible` treatment for buttons, links, inputs, textareas, and selects. A keyboard `Skip to contacts` link allows users to bypass repeated top-level interface controls and reach the existing contacts content region directly.
 
 On coarse-pointer devices, interactive controls receive a minimum touch-oriented height. Reduced-motion preference removes nonessential transitions and animations. Reduced-transparency preference replaces translucent application surfaces with solid surfaces and disables backdrop filtering.
 
+The dedicated `glaze-accessibility.css` layer additionally supports:
+
+- increased-contrast preference with stronger focus treatment;
+- forced-colors/high-contrast environments using system colors rather than relying on translucent or decorative surfaces;
+- removal of nonessential glass effects and shadows when forced colors are active;
+- explicit system-color treatment for the backend status indicator and primary interactive surfaces.
+
+These controls preserve the Glaze identity while giving readability and assistive-technology compatibility priority over decorative treatment.
+
 The existing semantic form labels, alert roles, `aria-live` backend status, and disabled mutation controls remain unchanged.
+
+## Browser privacy metadata
+
+The application document now declares:
+
+- `Referrer-Policy` equivalent browser metadata through `meta name="referrer" content="no-referrer"` so ordinary browser navigation does not disclose the Contacts page URL as a referrer;
+- `robots` directives requesting `noindex`, `nofollow`, `noarchive`, `nosnippet`, and `noimageindex` for the private application interface.
+
+These are privacy-by-default defense-in-depth controls. Crawler directives are not access controls and do not replace private DNS, NetBird authorization, Caddy publication rules, authentication, or firewall policy.
 
 ## Privacy and dependency boundary
 
@@ -57,17 +75,26 @@ External contact-photo behavior remains governed by the existing application log
 
 It verifies that:
 
-- the Glaze stylesheet remains loaded;
+- the Glaze foundation and accessibility layer remain loaded;
+- keyboard skip navigation remains present and focus-visible;
 - shared Glaze surface/accent tokens remain defined;
 - feature-specific compatibility tokens remain connected to Glaze;
 - keyboard focus-visible styling remains present;
 - reduced-motion handling remains present;
 - reduced-transparency fallback remains present;
+- increased-contrast handling remains present;
+- forced-colors handling remains present;
 - the small-screen sidebar remains available rather than being hidden;
 - light/dark document color-scheme support remains declared;
-- the Glaze stylesheet does not introduce remote CSS/font/image dependencies.
+- no-referrer browser metadata remains declared;
+- private no-index/no-archive crawler directives remain declared;
+- the Glaze stylesheets do not introduce remote CSS/font/image dependencies.
 
-This validator does not replace browser acceptance testing. It prevents accidental removal of agreed source-level design and accessibility requirements during later refactoring.
+This validator does not replace browser acceptance testing. It prevents accidental removal of agreed source-level design, accessibility, and browser-privacy requirements during later refactoring.
+
+## Related source hardening
+
+During this Phase 4D review, the production input-bound work was also reconciled so the primary CardDAV and VCF-export query parameters use the same shared href/ETag limits as the duplicate workflow. That change is documented separately in `production-readiness-input-bounds.md` because it is a security/readiness correction rather than a presentation feature.
 
 ## Production-readiness boundary
 
@@ -83,11 +110,11 @@ The following remain separate acceptance gates:
 - production logging/redaction and server-level request controls;
 - actual monitoring and alert delivery;
 - upgrade and rollback rehearsal;
-- production-representative browser acceptance, including small-screen visual validation;
+- production-representative browser acceptance, including small-screen and high-contrast visual validation;
 - DAVx5 coexistence and conflict testing;
 - portability acceptance;
 - controlled production-family onboarding.
 
 ## Acceptance criteria
 
-This increment is source-complete only when the exact branch head passes all existing backend and frontend checks plus the new Glaze UI validation step. Browser visual acceptance remains required before stable production approval.
+This increment is source-complete only when the exact branch head passes all existing backend and frontend checks plus the Glaze UI validation step. Browser visual acceptance remains required before stable production approval.
