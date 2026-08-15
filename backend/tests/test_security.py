@@ -1,5 +1,6 @@
 import pytest
 from cryptography.fernet import Fernet
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
@@ -36,6 +37,27 @@ def test_origin_normalization_rejects_non_origins_and_credentials() -> None:
     assert configured_frontend_origin("https://contacts.goreecloud.com/app") is None
 
 
+def test_app_environment_normalizes_supported_values() -> None:
+    development = Settings(_env_file=None, app_env=" DEVELOPMENT ")
+    test = Settings(_env_file=None, app_env="Test")
+    production = _production_settings(app_env=" PRODUCTION ")
+
+    assert development.app_env == "development"
+    assert test.app_env == "test"
+    assert production.app_env == "production"
+    assert development.is_production is False
+    assert test.is_production is False
+    assert production.is_production is True
+
+
+@pytest.mark.parametrize("value", ["prod", "prodution", "staging", "local", ""])
+def test_unknown_app_environment_fails_closed(value: str) -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(_env_file=None, app_env=value)
+
+    assert "app_env" in str(exc_info.value)
+
+
 def test_production_configuration_accepts_secure_https_boundaries() -> None:
     configured = _production_settings(frontend_origin="https://CONTACTS.goreecloud.com/")
 
@@ -62,6 +84,42 @@ def test_production_configuration_accepts_secure_https_boundaries() -> None:
 def test_production_configuration_fails_closed(overrides, message) -> None:
     with pytest.raises(ValidationError, match=message):
         _production_settings(**overrides)
+
+
+def test_api_documentation_is_enabled_only_outside_production() -> None:
+    development = Settings(_env_file=None, app_env="development")
+    test = Settings(_env_file=None, app_env="test")
+    production = _production_settings()
+
+    assert development.api_documentation_enabled is True
+    assert test.api_documentation_enabled is True
+    assert production.api_documentation_enabled is False
+
+
+def test_development_application_keeps_documentation_routes() -> None:
+    assert settings.app_env == "development"
+    assert app.docs_url == "/docs"
+    assert app.redoc_url == "/redoc"
+    assert app.openapi_url == "/openapi.json"
+
+    with TestClient(app) as client:
+        assert client.get("/docs").status_code == 200
+        assert client.get("/redoc").status_code == 200
+        assert client.get("/openapi.json").status_code == 200
+
+
+def test_production_documentation_configuration_removes_routes() -> None:
+    production = _production_settings()
+    production_app = FastAPI(
+        docs_url="/docs" if production.api_documentation_enabled else None,
+        redoc_url="/redoc" if production.api_documentation_enabled else None,
+        openapi_url="/openapi.json" if production.api_documentation_enabled else None,
+    )
+
+    with TestClient(production_app) as client:
+        assert client.get("/docs").status_code == 404
+        assert client.get("/redoc").status_code == 404
+        assert client.get("/openapi.json").status_code == 404
 
 
 def test_csrf_origin_check_rejects_missing_and_cross_origin_mutations(monkeypatch) -> None:
