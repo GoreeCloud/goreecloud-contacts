@@ -10,7 +10,7 @@ services:
     env_file:
       - ../.env
     extra_hosts:
-      calendar.goreecloud.com: "${GOREECLOUD_CONTACTS_CADDY_IP:?Set GOREECLOUD_CONTACTS_CADDY_IP to the approved Caddy address on the proxy network}"
+      - "${GOREECLOUD_CONTACTS_CARDDAV_HOST:?Set GOREECLOUD_CONTACTS_CARDDAV_HOST to the approved CardDAV hostname}=${GOREECLOUD_CONTACTS_CADDY_IP:?Set GOREECLOUD_CONTACTS_CADDY_IP to the approved Caddy address on the proxy network}"
     environment:
       APP_ENV: production
       FRONTEND_ORIGIN: https://contacts.goreecloud.com
