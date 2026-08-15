@@ -34,7 +34,22 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend dependencies
-        run: python -m pip install -e ".[test]"
+        run: >-
+          python -m pip install
+          -e ".[test]"
+          pip-audit==2.10.1
+
+      - name: Audit backend dependencies
+        # Temporary, scope-limited exception:
+        # PYSEC-2026-3552 affects cryptography PKCS#7 EnvelopedData decryption APIs.
+        # GoreeCloud Contacts uses Fernet/MultiFernet only, and an automated source
+        # guard rejects use/import of the affected PKCS#7 decrypt surface. Remove
+        # this exception and upgrade cryptography when a fixed stable release is
+        # available.
+        run: >-
+          python -m pip_audit .
+          --progress-spinner off
+          --ignore-vuln PYSEC-2026-3552
 
       - name: Validate live helper syntax
         run: >-
@@ -67,6 +82,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Audit frontend dependencies
+        run: npm audit
 
       - name: Lint frontend
         run: npm run lint
