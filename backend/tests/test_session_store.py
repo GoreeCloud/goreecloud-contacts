@@ -26,20 +26,21 @@ def test_sqlite_session_survives_store_recreation(tmp_path) -> None:
     assert restored.expires_at == created.expires_at
 
 
-def test_sqlite_session_does_not_store_raw_token_or_password(tmp_path) -> None:
+def test_sqlite_session_does_not_store_raw_token_username_or_password(tmp_path) -> None:
     database = tmp_path / "sessions.sqlite3"
     store = SqliteSessionStore(3600, str(database), [_key()])
     created = store.create(username="test-user", password="super-secret-password")
 
     with sqlite3.connect(database) as connection:
-        token_digest, encrypted_password = connection.execute(
-            "SELECT token_digest, encrypted_password FROM sessions"
+        token_digest, encrypted_credentials = connection.execute(
+            "SELECT token_digest, encrypted_credentials FROM sessions"
         ).fetchone()
 
     assert token_digest != created.token
     assert len(token_digest) == 64
-    assert b"super-secret-password" not in encrypted_password
-    assert created.token.encode("utf-8") not in encrypted_password
+    assert b"test-user" not in encrypted_credentials
+    assert b"super-secret-password" not in encrypted_credentials
+    assert created.token.encode("utf-8") not in encrypted_credentials
 
 
 def test_sqlite_session_is_shared_and_revocation_is_visible(tmp_path) -> None:
@@ -64,7 +65,9 @@ def test_sqlite_session_supports_controlled_key_rotation(tmp_path) -> None:
     old_session = old_store.create(username="old-user", password="old-password")
 
     rotating_store = SqliteSessionStore(3600, str(database), [new_key, old_key])
-    assert rotating_store.get(old_session.token) is not None
+    restored_old = rotating_store.get(old_session.token)
+    assert restored_old is not None
+    assert restored_old.username == "old-user"
 
     new_session = rotating_store.create(username="new-user", password="new-password")
     old_key_only = SqliteSessionStore(3600, str(database), [old_key])
