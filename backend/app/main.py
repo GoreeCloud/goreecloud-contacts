@@ -1,20 +1,27 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
-from .auth import SessionRecord, SessionStore
+from .auth import SessionRecord, create_session_store
 from .carddav import (
     CardDavAuthenticationError,
     CardDavAuthorizationError,
     CardDavClient,
-    CardDavConflict,
     CardDavError,
-    CardDavNotFound,
 )
-from .config import get_settings
+from .carddav_errors import carddav_http_exception
+from .config import fastapi_documentation_options, get_settings
+from .duplicate_routes import build_duplicate_router
+from .health import carddav_transport_ready
+from .logging_privacy import configure_access_log_privacy
+from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
+    MAX_ETAG_CHARS,
+    MAX_RESOURCE_HREF_CHARS,
     AddressBook,
     AuthSessionResponse,
     CardDavStatusResponse,
@@ -24,19 +31,38 @@ from .models import (
     ContactWriteRequest,
     HealthResponse,
     LoginRequest,
+    ReadinessChecks,
+    ReadinessResponse,
 )
 
 settings = get_settings()
-session_store = SessionStore(settings.session_ttl_seconds)
+configure_access_log_privacy()
+session_store = create_session_store(
+    backend=settings.session_store_backend,
+    ttl_seconds=settings.session_ttl_seconds,
+    database_path=settings.session_db_path,
+    encryption_keys=settings.session_encryption_key_list,
+)
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # Reapply after server logging configuration in case the application was imported before
+    # Uvicorn configured its loggers. The installer is idempotent.
+    configure_access_log_privacy()
+    yield
+
 
 app = FastAPI(
     title="GoreeCloud Contacts API",
-    version="0.4.0",
+    version="0.5.0",
     description=(
         "CardDAV API for GoreeCloud Contacts with Radicale-backed authentication, "
-        "per-user collection isolation, expanded vCard contact fields, and conditional "
-        "write protection."
+        "per-user collection isolation, expanded vCard contact fields, raw VCF portability, "
+        "user-reviewed duplicate detection/merge, and conditional write protection."
     ),
+    lifespan=_lifespan,
+    **fastapi_documentation_options(settings.api_documentation_enabled),
 )
 
 app.add_middleware(
@@ -48,7 +74,36 @@ app.add_middleware(
 )
 
 
+def _apply_api_privacy_headers(response: Response) -> Response:
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.middleware("http")
+async def protect_api_requests(request: Request, call_next):
+    if (
+        settings.csrf_origin_check_enabled
+        and request.method.upper() in UNSAFE_METHODS
+        and not request_origin_is_trusted(request, settings.frontend_origin)
+    ):
+        response = JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": "Request origin is not allowed."},
+        )
+    else:
+        response = await call_next(request)
+
+    if request.url.path.startswith("/api/"):
+        return _apply_api_privacy_headers(response)
+    return response
+
+
 app.include_router(build_vcf_router(settings, session_store))
+app.include_router(build_duplicate_router(settings, session_store))
 
 
 def _require_session(request: Request) -> SessionRecord:
@@ -91,18 +146,6 @@ def _carddav_client(
     )
 
 
-def _carddav_failure(exc: CardDavError) -> HTTPException:
-    if isinstance(exc, CardDavAuthenticationError):
-        return HTTPException(status_code=401, detail="CardDAV authentication failed.")
-    if isinstance(exc, CardDavAuthorizationError):
-        return HTTPException(status_code=403, detail=str(exc))
-    if isinstance(exc, CardDavConflict):
-        return HTTPException(status_code=409, detail=str(exc))
-    if isinstance(exc, CardDavNotFound):
-        return HTTPException(status_code=404, detail=str(exc))
-    return HTTPException(status_code=502, detail=str(exc))
-
-
 def _session_response(record: SessionRecord | None) -> AuthSessionResponse:
     if record is None:
         return AuthSessionResponse(authenticated=False)
@@ -113,12 +156,57 @@ def _session_response(record: SessionRecord | None) -> AuthSessionResponse:
     )
 
 
-@app.get("/api/health", response_model=HealthResponse)
-async def health() -> HealthResponse:
+def _liveness_response() -> HealthResponse:
     return HealthResponse(
         status="ok",
         service="goreecloud-contacts-backend",
         environment=settings.app_env,
+    )
+
+
+@app.get("/api/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    """Compatibility liveness endpoint retained for existing development checks."""
+
+    return _liveness_response()
+
+
+@app.get("/api/health/live", response_model=HealthResponse)
+async def health_live() -> HealthResponse:
+    """Process liveness only; does not claim dependency readiness."""
+
+    return _liveness_response()
+
+
+@app.get("/api/health/ready", response_model=ReadinessResponse)
+async def health_ready():
+    """Dependency readiness without user credentials or contact-data disclosure."""
+
+    session_ready = session_store.healthcheck()
+    if settings.carddav_configured:
+        carddav_ready = await carddav_transport_ready(
+            settings.carddav_base_url,
+            settings.carddav_timeout_seconds,
+        )
+        carddav_status = "ok" if carddav_ready else "unavailable"
+    else:
+        carddav_ready = False
+        carddav_status = "not_configured"
+
+    ready = session_ready and carddav_ready
+    response = ReadinessResponse(
+        status="ready" if ready else "not_ready",
+        service="goreecloud-contacts-backend",
+        checks=ReadinessChecks(
+            session_store="ok" if session_ready else "unavailable",
+            carddav=carddav_status,
+        ),
+    )
+    if ready:
+        return response
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=response.model_dump(),
     )
 
 
@@ -151,7 +239,7 @@ async def login(payload: LoginRequest, response: Response) -> AuthSessionRespons
             detail="Unable to sign in with the supplied CardDAV credentials.",
         ) from exc
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
     record = session_store.create(username=username, password=password)
     response.set_cookie(
@@ -191,29 +279,32 @@ async def address_books(session: AuthenticatedSession) -> list[AddressBook]:
     try:
         return await _carddav_client(session).discover_address_books()
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
 
 @app.get("/api/carddav/contacts", response_model=list[ContactSummary])
 async def contacts(
     session: AuthenticatedSession,
-    address_book_href: Annotated[str, Query(min_length=1)],
+    address_book_href: Annotated[
+        str,
+        Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+    ],
 ) -> list[ContactSummary]:
     try:
         return await _carddav_client(session).list_contacts(address_book_href)
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
 
 @app.get("/api/carddav/contact", response_model=ContactDetail)
 async def contact(
     session: AuthenticatedSession,
-    href: Annotated[str, Query(min_length=1)],
+    href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
 ) -> ContactDetail:
     try:
         return await _carddav_client(session).get_contact(href)
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
 
 @app.post(
@@ -224,7 +315,10 @@ async def contact(
 async def create_contact(
     payload: ContactWriteRequest,
     session: AuthenticatedSession,
-    address_book_href: Annotated[str, Query(min_length=1)],
+    address_book_href: Annotated[
+        str,
+        Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+    ],
 ) -> ContactDetail:
     try:
         return await _carddav_client(session, require_write=True).create_contact(
@@ -233,7 +327,7 @@ async def create_contact(
         )
     except (CardDavError, ValueError) as exc:
         if isinstance(exc, CardDavError):
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
@@ -241,8 +335,8 @@ async def create_contact(
 async def update_contact(
     payload: ContactWriteRequest,
     session: AuthenticatedSession,
-    href: Annotated[str, Query(min_length=1)],
-    etag: Annotated[str, Query(min_length=1)],
+    href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
+    etag: Annotated[str, Query(min_length=1, max_length=MAX_ETAG_CHARS)],
 ) -> ContactDetail:
     try:
         return await _carddav_client(session, require_write=True).update_contact(
@@ -252,19 +346,19 @@ async def update_contact(
         )
     except (CardDavError, ValueError) as exc:
         if isinstance(exc, CardDavError):
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.delete("/api/carddav/contact", response_model=ContactDeleteResponse)
 async def delete_contact(
     session: AuthenticatedSession,
-    href: Annotated[str, Query(min_length=1)],
-    etag: Annotated[str, Query(min_length=1)],
+    href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
+    etag: Annotated[str, Query(min_length=1, max_length=MAX_ETAG_CHARS)],
 ) -> ContactDeleteResponse:
     try:
         await _carddav_client(session, require_write=True).delete_contact(href, etag)
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
     return ContactDeleteResponse(deleted=True, href=href)
