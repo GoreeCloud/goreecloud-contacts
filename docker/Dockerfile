@@ -20,9 +20,11 @@ RUN groupadd --gid 10001 goreecloud \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin goreecloud
 
 WORKDIR /app/backend
-COPY backend/pyproject.toml ./
+COPY backend/pyproject.toml backend/requirements.runtime.lock ./
 COPY backend/app ./app
-RUN python -m pip install --no-cache-dir .
+RUN python -m pip install --no-cache-dir -r requirements.runtime.lock \
+    && python -m pip install --no-cache-dir --no-deps . \
+    && python -m pip check
 
 COPY --from=frontend-build /build/frontend/dist /app/frontend
 
