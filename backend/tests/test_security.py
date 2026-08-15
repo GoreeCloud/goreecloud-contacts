@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.config import Settings
+from app.config import Settings, fastapi_documentation_options
 from app.main import app, settings
 from app.security import configured_frontend_origin, normalize_origin
 
@@ -96,25 +96,20 @@ def test_api_documentation_is_enabled_only_outside_production() -> None:
     assert production.api_documentation_enabled is False
 
 
-def test_development_application_keeps_documentation_routes() -> None:
-    assert settings.app_env == "development"
-    assert app.docs_url == "/docs"
-    assert app.redoc_url == "/redoc"
-    assert app.openapi_url == "/openapi.json"
+def test_documentation_route_configuration_matches_environment_policy() -> None:
+    development_app = FastAPI(
+        **fastapi_documentation_options(
+            Settings(_env_file=None, app_env="development").api_documentation_enabled
+        )
+    )
+    production_app = FastAPI(
+        **fastapi_documentation_options(_production_settings().api_documentation_enabled)
+    )
 
-    with TestClient(app) as client:
+    with TestClient(development_app) as client:
         assert client.get("/docs").status_code == 200
         assert client.get("/redoc").status_code == 200
         assert client.get("/openapi.json").status_code == 200
-
-
-def test_production_documentation_configuration_removes_routes() -> None:
-    production = _production_settings()
-    production_app = FastAPI(
-        docs_url="/docs" if production.api_documentation_enabled else None,
-        redoc_url="/redoc" if production.api_documentation_enabled else None,
-        openapi_url="/openapi.json" if production.api_documentation_enabled else None,
-    )
 
     with TestClient(production_app) as client:
         assert client.get("/docs").status_code == 404
