@@ -112,7 +112,7 @@ def test_contact_write_accepts_https_photo_reference() -> None:
 
 
 def test_contact_write_rejects_embedded_photo_data_uri() -> None:
-    with pytest.raises(ValidationError, match="HTTP\(S\) URI reference"):
+    with pytest.raises(ValidationError, match=r"HTTP\(S\) URI reference"):
         ContactWriteRequest(
             formatted_name="Embedded Photo Example",
             photo="data:image/png;base64,AAAA",

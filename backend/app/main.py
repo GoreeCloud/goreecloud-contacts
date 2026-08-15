@@ -59,18 +59,32 @@ app.add_middleware(
 )
 
 
+def _apply_api_privacy_headers(response: Response) -> Response:
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 @app.middleware("http")
-async def enforce_browser_mutation_origin(request: Request, call_next):
+async def protect_api_requests(request: Request, call_next):
     if (
         settings.csrf_origin_check_enabled
         and request.method.upper() in UNSAFE_METHODS
         and not request_origin_is_trusted(request, settings.frontend_origin)
     ):
-        return JSONResponse(
+        response = JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"detail": "Request origin is not allowed."},
         )
-    return await call_next(request)
+    else:
+        response = await call_next(request)
+
+    if request.url.path.startswith("/api/"):
+        return _apply_api_privacy_headers(response)
+    return response
 
 
 app.include_router(build_vcf_router(settings, session_store))
