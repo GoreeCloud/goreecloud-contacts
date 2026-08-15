@@ -28,8 +28,9 @@ RUN python -m pip install --no-cache-dir -r requirements.runtime.lock \
 
 COPY --from=frontend-build /build/frontend/dist /app/frontend
 
-RUN mkdir -p /data /tmp \
-    && chown -R 10001:10001 /data /tmp
+RUN mkdir -p /data /tmp /run/secrets \
+    && chown -R 10001:10001 /data /tmp \
+    && chmod 0755 /run/secrets
 
 USER 10001:10001
 EXPOSE 8000
