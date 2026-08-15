@@ -1,8 +1,9 @@
 import { readFile } from 'node:fs/promises'
 
-const [mainSource, glazeSource, indexSource] = await Promise.all([
+const [mainSource, glazeSource, accessibilitySource, indexSource] = await Promise.all([
   readFile(new URL('../src/main.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze.css', import.meta.url), 'utf8'),
+  readFile(new URL('../src/glaze-accessibility.css', import.meta.url), 'utf8'),
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
 ])
 
@@ -10,6 +11,18 @@ const requirements = [
   {
     ok: mainSource.includes("import './glaze.css'"),
     message: 'frontend/src/main.tsx must load the Glaze UI foundation.',
+  },
+  {
+    ok: mainSource.includes("import './glaze-accessibility.css'"),
+    message: 'frontend/src/main.tsx must load the Glaze accessibility layer.',
+  },
+  {
+    ok: mainSource.includes('className="skip-link"') && mainSource.includes('href="#contacts"'),
+    message: 'The application root must provide keyboard skip navigation to the contacts content.',
+  },
+  {
+    ok: accessibilitySource.includes('.skip-link:focus-visible'),
+    message: 'The keyboard skip link must become visible on focus.',
   },
   {
     ok: glazeSource.includes('--glaze-surface') && glazeSource.includes('--glaze-accent'),
@@ -26,8 +39,9 @@ const requirements = [
     message: 'Glaze UI must retain explicit keyboard focus-visible treatment.',
   },
   {
-    ok: glazeSource.includes('@media (prefers-reduced-motion: reduce)'),
-    message: 'Glaze UI must retain reduced-motion behavior.',
+    ok: glazeSource.includes('@media (prefers-reduced-motion: reduce)') &&
+      accessibilitySource.includes('@media (prefers-reduced-motion: reduce)'),
+    message: 'Glaze UI and skip navigation must retain reduced-motion behavior.',
   },
   {
     ok: glazeSource.includes('@media (prefers-reduced-transparency: reduce)'),
@@ -46,8 +60,8 @@ const requirements = [
     message: 'The document must declare light/dark color-scheme support.',
   },
   {
-    ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(glazeSource),
-    message: 'The Glaze UI foundation must not introduce third-party CSS/font/image dependencies.',
+    ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(`${glazeSource}\n${accessibilitySource}`),
+    message: 'The Glaze UI layers must not introduce third-party CSS/font/image dependencies.',
   },
 ]
 
