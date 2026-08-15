@@ -1,5 +1,6 @@
 import logging
 
+import app.main  # noqa: F401  # Importing the application installs logging privacy controls.
 from app.logging_privacy import QueryStringRedactionFilter, configure_access_log_privacy
 
 
@@ -37,6 +38,13 @@ def test_queryless_request_target_is_preserved() -> None:
 
     assert record.args[2] == "/api/health/ready"
     assert record.getMessage().endswith('GET /api/health/ready HTTP/1.1" 200')
+
+
+def test_application_installs_access_log_privacy_filter() -> None:
+    logger = logging.getLogger("uvicorn.access")
+
+    filters = [item for item in logger.filters if isinstance(item, QueryStringRedactionFilter)]
+    assert len(filters) == 1
 
 
 def test_access_log_privacy_configuration_is_idempotent() -> None:
