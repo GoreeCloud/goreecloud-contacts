@@ -107,7 +107,13 @@ def test_production_encryption_secret_file_must_be_readable() -> None:
         ({"session_store_backend": "memory"}, "SESSION_STORE_BACKEND=sqlite"),
         ({"session_encryption_keys": ""}, "SESSION_ENCRYPTION_KEYS"),
         ({"session_db_path": "sessions.sqlite3"}, "SESSION_DB_PATH to be an absolute path"),
-        ({"session_encryption_keys_file": "relative/secret"}, "absolute path"),
+        (
+            {
+                "session_encryption_keys": "",
+                "session_encryption_keys_file": "relative/secret",
+            },
+            "absolute path",
+        ),
     ],
 )
 def test_production_configuration_fails_closed(overrides, message) -> None:
