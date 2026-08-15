@@ -22,7 +22,9 @@ These controls reduce browser caching and referrer leakage. They do not replace 
 
 ### Uvicorn access-log query minimization
 
-The application now installs `QueryStringRedactionFilter` from `backend/app/logging_privacy.py` on the `uvicorn.access` logger when the application module is loaded.
+The application installs `QueryStringRedactionFilter` from `backend/app/logging_privacy.py` on the `uvicorn.access` logger when the application module is loaded and reapplies the same idempotent installation during FastAPI lifespan startup.
+
+The two installation points cover both normal CLI startup, where Uvicorn configures logging before loading the application, and programmatic startup patterns that may import the application before server logging is reconfigured.
 
 The filter removes the query component from Uvicorn's normal access-log request target before the record is formatted.
 
@@ -42,7 +44,7 @@ The filter is deliberately narrow:
 - it preserves the HTTP method, route path, protocol version, client address already included by Uvicorn, and response status;
 - it does not log replacement values;
 - it does not inspect or retain removed query data;
-- configuration is idempotent so repeated application imports do not stack duplicate filters.
+- configuration is idempotent so repeated application imports or startup hooks do not stack duplicate filters.
 
 This protects the existing Phase 4C local acceptance helper as well as normal development requests from routine Uvicorn query-string logging.
 
@@ -114,7 +116,8 @@ A production retention value must be chosen only after the target host, operatio
 - a query-bearing Uvicorn access-log record loses the complete query component;
 - representative CardDAV href and ETag values are absent after formatting;
 - a queryless request path remains unchanged;
-- the application installs the filter;
+- application import installs the filter;
+- application lifespan startup reapplies the filter after simulated logger reconfiguration;
 - repeated installation is idempotent.
 
 `backend/tests/test_carddav_errors.py` validates that:
