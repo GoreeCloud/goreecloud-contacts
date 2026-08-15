@@ -130,8 +130,9 @@ jobs:
           COMPOSE_SECRET="$RUNNER_TEMP/goreecloud-contacts-compose-secret"
           printf '%s\n' 'synthetic-compose-secret-placeholder' > "$COMPOSE_SECRET"
           GOREECLOUD_CONTACTS_SESSION_SECRET_PATH="$COMPOSE_SECRET" \
-            docker compose -f docker/compose.production.yml config >/dev/null
-          rm .env "$COMPOSE_SECRET"
+            docker compose -f docker/compose.production.yml config > "$RUNNER_TEMP/contacts-compose.yml"
+          grep -F 'ipv4_address: 172.19.0.51' "$RUNNER_TEMP/contacts-compose.yml"
+          rm .env "$COMPOSE_SECRET" "$RUNNER_TEMP/contacts-compose.yml"
 
       - name: Build production image
         run: docker build -f docker/Dockerfile -t goreecloud-contacts:ci .
