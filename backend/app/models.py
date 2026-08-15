@@ -5,6 +5,9 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field, SecretStr, field_validator
 
 
+MAX_RESOURCE_HREF_CHARS = 4096
+MAX_ETAG_CHARS = 1024
+
 ContactEmail = Annotated[str, Field(min_length=1, max_length=320)]
 ContactPhone = Annotated[str, Field(min_length=1, max_length=128)]
 ContactWebsite = Annotated[str, Field(min_length=1, max_length=2048)]
