@@ -16,7 +16,7 @@ def _production_settings(**overrides) -> Settings:
     values = {
         "app_env": "production",
         "frontend_origin": "https://contacts.goreecloud.com",
-        "carddav_base_url": "https://dav.goreecloud.com",
+        "carddav_base_url": "https://calendar.goreecloud.com",
         "session_cookie_secure": True,
         "csrf_origin_check_enabled": True,
         "session_store_backend": "sqlite",
@@ -68,6 +68,34 @@ def test_production_configuration_accepts_secure_https_boundaries() -> None:
     assert configured.session_encryption_key_list == [_TEST_FERNET_KEY]
 
 
+def test_production_configuration_accepts_file_based_encryption_secret(tmp_path) -> None:
+    secret_path = tmp_path / "session-encryption-keys"
+    secret_path.write_text(_TEST_FERNET_KEY + "\n", encoding="utf-8")
+
+    configured = _production_settings(
+        session_encryption_keys="",
+        session_encryption_keys_file=str(secret_path),
+    )
+
+    assert configured.session_encryption_key_list == [_TEST_FERNET_KEY]
+
+
+def test_encryption_secret_sources_are_mutually_exclusive(tmp_path) -> None:
+    secret_path = tmp_path / "session-encryption-keys"
+    secret_path.write_text(_TEST_FERNET_KEY, encoding="utf-8")
+
+    with pytest.raises(ValidationError, match="Configure only one"):
+        _production_settings(session_encryption_keys_file=str(secret_path))
+
+
+def test_production_encryption_secret_file_must_be_readable() -> None:
+    with pytest.raises(ValidationError, match="readable secret file"):
+        _production_settings(
+            session_encryption_keys="",
+            session_encryption_keys_file="/missing/goreecloud-contacts-session-key",
+        )
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
@@ -75,10 +103,17 @@ def test_production_configuration_accepts_secure_https_boundaries() -> None:
         ({"csrf_origin_check_enabled": False}, "CSRF_ORIGIN_CHECK_ENABLED=true"),
         ({"frontend_origin": "http://contacts.goreecloud.com"}, "HTTPS FRONTEND_ORIGIN"),
         ({"carddav_base_url": ""}, "CARDDAV_BASE_URL to be configured"),
-        ({"carddav_base_url": "http://dav.goreecloud.com"}, "HTTPS CARDDAV_BASE_URL"),
+        ({"carddav_base_url": "http://calendar.goreecloud.com"}, "HTTPS CARDDAV_BASE_URL"),
         ({"session_store_backend": "memory"}, "SESSION_STORE_BACKEND=sqlite"),
         ({"session_encryption_keys": ""}, "SESSION_ENCRYPTION_KEYS"),
         ({"session_db_path": "sessions.sqlite3"}, "SESSION_DB_PATH to be an absolute path"),
+        (
+            {
+                "session_encryption_keys": "",
+                "session_encryption_keys_file": "relative/secret",
+            },
+            "absolute path",
+        ),
     ],
 )
 def test_production_configuration_fails_closed(overrides, message) -> None:

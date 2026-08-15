@@ -269,6 +269,13 @@ def build_duplicate_router(settings: Settings, session_store: SessionStore) -> A
         payload: DuplicateMergeRequest,
         session: AuthenticatedSession,
     ) -> DuplicateMergeResponse:
+        if not settings.duplicate_merge_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    "Duplicate merge is disabled until Phase 4C live acceptance is approved."
+                ),
+            )
         try:
             return await merge_duplicate_contacts(
                 carddav_client(session, require_write=True),

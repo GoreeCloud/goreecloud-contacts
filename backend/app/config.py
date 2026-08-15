@@ -27,12 +27,14 @@ class Settings(BaseSettings):
     carddav_base_url: str = ""
     carddav_timeout_seconds: float = 15.0
     carddav_write_enabled: bool = False
+    duplicate_merge_enabled: bool = False
     session_ttl_seconds: int = 28_800
     session_cookie_name: str = "goreecloud_contacts_session"
     session_cookie_secure: bool = False
     session_store_backend: Literal["memory", "sqlite"] = "memory"
     session_db_path: str = "/data/sessions.sqlite3"
     session_encryption_keys: SecretStr = SecretStr("")
+    session_encryption_keys_file: str = ""
     csrf_origin_check_enabled: bool = False
 
     model_config = SettingsConfigDict(
@@ -65,11 +67,27 @@ class Settings(BaseSettings):
 
     @property
     def session_encryption_key_list(self) -> list[str]:
-        return [
-            value.strip()
-            for value in self.session_encryption_keys.get_secret_value().split(",")
-            if value.strip()
-        ]
+        inline_value = self.session_encryption_keys.get_secret_value().strip()
+        file_value = self.session_encryption_keys_file.strip()
+
+        if inline_value and file_value:
+            raise ValueError(
+                "Configure only one of SESSION_ENCRYPTION_KEYS or SESSION_ENCRYPTION_KEYS_FILE."
+            )
+
+        raw_value = inline_value
+        if file_value:
+            secret_path = Path(file_value).expanduser()
+            if not secret_path.is_absolute():
+                raise ValueError("SESSION_ENCRYPTION_KEYS_FILE must be an absolute path.")
+            try:
+                raw_value = secret_path.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise ValueError(
+                    "SESSION_ENCRYPTION_KEYS_FILE must reference a readable secret file."
+                ) from exc
+
+        return [value.strip() for value in raw_value.split(",") if value.strip()]
 
     @model_validator(mode="after")
     def validate_security_boundaries(self) -> "Settings":
@@ -79,6 +97,19 @@ class Settings(BaseSettings):
                 "FRONTEND_ORIGIN must be one HTTP(S) origin without a path, query, or fragment."
             )
         self.frontend_origin = frontend_origin
+
+        # Validate secret-source ambiguity and file-path shape in every environment so a
+        # deployment cannot silently choose a different key source than the administrator
+        # intended. The file is read only when the key list is actually required below or
+        # by the selected session store.
+        inline_keys = self.session_encryption_keys.get_secret_value().strip()
+        key_file = self.session_encryption_keys_file.strip()
+        if inline_keys and key_file:
+            raise ValueError(
+                "Configure only one of SESSION_ENCRYPTION_KEYS or SESSION_ENCRYPTION_KEYS_FILE."
+            )
+        if key_file and not Path(key_file).expanduser().is_absolute():
+            raise ValueError("SESSION_ENCRYPTION_KEYS_FILE must be an absolute path.")
 
         if not self.is_production:
             return self
@@ -99,7 +130,9 @@ class Settings(BaseSettings):
         if self.session_store_backend != "sqlite":
             raise ValueError("Production requires SESSION_STORE_BACKEND=sqlite.")
         if not self.session_encryption_key_list:
-            raise ValueError("Production requires SESSION_ENCRYPTION_KEYS.")
+            raise ValueError(
+                "Production requires SESSION_ENCRYPTION_KEYS or SESSION_ENCRYPTION_KEYS_FILE."
+            )
         if not Path(self.session_db_path).expanduser().is_absolute():
             raise ValueError("Production requires SESSION_DB_PATH to be an absolute path.")
 

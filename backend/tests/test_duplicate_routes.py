@@ -5,7 +5,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, session_store, settings
 
 from app.carddav import CardDavConflict, CardDavError
 from app.duplicate_models import DuplicateMergeRequest
@@ -225,3 +225,30 @@ def test_duplicate_scan_uses_authenticated_session_dependency() -> None:
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Authentication is required."}
+
+
+def test_duplicate_merge_is_separately_disabled_by_default() -> None:
+    assert settings.duplicate_merge_enabled is False
+    record = session_store.create(username="stable-user", password="synthetic-secret")
+
+    try:
+        with TestClient(app) as client:
+            client.cookies.set(settings.session_cookie_name, record.token)
+            response = client.post(
+                "/api/carddav/duplicates/merge",
+                json={
+                    "address_book_href": "/test-user/contacts/",
+                    "primary_href": "/test-user/contacts/primary.vcf",
+                    "primary_etag": '"primary-etag"',
+                    "duplicate_href": "/test-user/contacts/duplicate.vcf",
+                    "duplicate_etag": '"duplicate-etag"',
+                    "merged": {"formatted_name": "Jordan Example"},
+                },
+            )
+    finally:
+        session_store.delete(record.token)
+
+    assert response.status_code == 403
+    assert response.json() == {
+        "detail": "Duplicate merge is disabled until Phase 4C live acceptance is approved."
+    }
