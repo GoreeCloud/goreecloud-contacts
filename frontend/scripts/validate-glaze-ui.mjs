@@ -48,6 +48,14 @@ const requirements = [
     message: 'Glaze UI must retain reduced-transparency fallback behavior.',
   },
   {
+    ok: accessibilitySource.includes('@media (prefers-contrast: more)'),
+    message: 'The Glaze accessibility layer must retain increased-contrast behavior.',
+  },
+  {
+    ok: accessibilitySource.includes('@media (forced-colors: active)'),
+    message: 'The Glaze accessibility layer must retain forced-colors fallback behavior.',
+  },
+  {
     ok: /@media \(max-width: 820px\)[\s\S]*?\.sidebar\s*\{[\s\S]*?display:\s*grid;/m.test(glazeSource),
     message: 'Small-screen Glaze UI must keep the primary sidebar controls available.',
   },
@@ -58,6 +66,17 @@ const requirements = [
   {
     ok: indexSource.includes('name="color-scheme"') && indexSource.includes('light dark'),
     message: 'The document must declare light/dark color-scheme support.',
+  },
+  {
+    ok: indexSource.includes('name="referrer"') && indexSource.includes('content="no-referrer"'),
+    message: 'The private application document must retain no-referrer browser metadata.',
+  },
+  {
+    ok: indexSource.includes('name="robots"') &&
+      indexSource.includes('noindex') &&
+      indexSource.includes('nofollow') &&
+      indexSource.includes('noarchive'),
+    message: 'The private application document must retain no-index/no-archive crawler directives.',
   },
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(`${glazeSource}\n${accessibilitySource}`),
