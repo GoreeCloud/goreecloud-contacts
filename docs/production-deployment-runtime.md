@@ -60,10 +60,18 @@ The production runtime is intentionally constrained:
 - no Docker socket or privileged mode;
 - no host network mode;
 - no application host port published by the production Compose definition;
-- only the external `proxy` Docker network is attached;
-- health checking uses `/api/health/ready`.
+- only the external `proxy` Docker network attached;
+- health checking through `/api/health/ready`.
 
 The image uses two Uvicorn workers. Shared SQLite sessions therefore provide worker-compatible authentication state instead of process-local sessions.
+
+## Production Dependency Contract
+
+The frontend uses the committed npm lock and `npm ci`.
+
+The Python production image uses `backend/requirements.runtime.lock`, then installs the GoreeCloud Contacts package with `--no-deps` and runs `pip check`. Development-only FastAPI CLI/cloud tooling is intentionally excluded from the production dependency set.
+
+The Node and Python base images are referenced by explicit release families plus immutable registry digests. Any digest refresh is a reviewed dependency/image update and must pass the complete CI/runtime gate before deployment.
 
 ## Persistent Data Boundary
 
@@ -75,32 +83,73 @@ Loss of the Contacts session database should force sign-in again; it must not de
 
 The authoritative contact data and its recovery path remain with Radicale/CardDAV.
 
+## Secret Boundary
+
+Production session encryption keys are reusable secret material and use a file-based secret rather than living directly in the ordinary production `.env`.
+
+The production application receives only this non-secret reference:
+
+```text
+SESSION_ENCRYPTION_KEYS_FILE=/run/secrets/session-encryption-keys
+```
+
+The Compose source is the protected host file referenced by:
+
+```text
+GOREECLOUD_CONTACTS_SESSION_SECRET_PATH=/srv/docker/secrets/goreecloud-contacts/session-encryption-keys
+```
+
+`SESSION_ENCRYPTION_KEYS` remains supported for local/test compatibility, but the application fails closed if both the direct-value and file-based mechanisms are configured simultaneously.
+
+The active key value must never be committed, copied into this runbook, placed in the Docker image, or printed during troubleshooting.
+
 ## Target Host Preparation
 
 Before first production startup, inspect the current target host, Docker networks, Caddy state, CardDAV service identity, backups, and filesystem ownership. Do not create paths or change shared services based only on this example.
 
-The intended GoreeCloud data path is:
+The intended GoreeCloud paths are:
 
 ```text
 /srv/docker/appdata/goreecloud-contacts/
+/srv/docker/secrets/goreecloud-contacts/session-encryption-keys
 ```
 
-When that path is confirmed for the selected host, create it with ownership matching runtime UID/GID `10001:10001` and restrictive permissions. The production `.env` must also be protected and must not be committed.
+When those paths are confirmed for the selected host:
 
-Example validation targets after controlled creation:
+1. Create the app-data directory for runtime UID/GID `10001:10001` with restrictive permissions.
+2. Create the secret directory with restrictive administrative access.
+3. Generate a Fernet key using an approved cryptographically secure method without placing the value into source control, documentation, or shell history when avoidable.
+4. Store the secret file so runtime UID `10001` can read it and other ordinary host users cannot.
+5. Protect the production `.env` with owner-only permissions.
+
+Because Docker Compose implements `file:` secrets using a bind mount, file-source `uid`, `gid`, and `mode` remapping is not available. The **host-side secret file ownership and mode are therefore authoritative for readability by the non-root container**.
+
+A suitable intended state is:
+
+```text
+/srv/docker/appdata/goreecloud-contacts         10001:10001  700
+/srv/docker/secrets/goreecloud-contacts         root:root    700
+.../session-encryption-keys                     10001:10001  400 or 600
+/srv/docker/stacks/goreecloud-contacts/.env     approved administrator 600
+```
+
+Use actual host inspection and the approved GoreeCloud ownership model before applying ownership. Do not use `chmod 777` or broad-readability troubleshooting.
+
+Validate metadata after creation:
 
 ```bash
-sudo stat -c '%U %G %a %n' /srv/docker/appdata/goreecloud-contacts
-sudo stat -c '%U %G %a %n' .env
+sudo stat -c '%A %a %U:%G %n' \
+  /srv/docker/appdata/goreecloud-contacts \
+  /srv/docker/secrets/goreecloud-contacts \
+  /srv/docker/secrets/goreecloud-contacts/session-encryption-keys \
+  /srv/docker/stacks/goreecloud-contacts/.env
 ```
-
-Expected policy intent is application-only write access to session data and owner-restricted access to the production environment file.
 
 ## Required Production Configuration
 
-The application fails closed in production unless the required security configuration is present.
+The application fails closed in production unless required security configuration is present.
 
-At minimum, review and provide:
+At minimum, review and provide non-secret runtime values equivalent to:
 
 ```text
 APP_ENV=production
@@ -112,16 +161,12 @@ SESSION_COOKIE_SECURE=true
 CSRF_ORIGIN_CHECK_ENABLED=true
 SESSION_STORE_BACKEND=sqlite
 SESSION_DB_PATH=/data/sessions.sqlite3
-SESSION_ENCRYPTION_KEYS=<protected runtime secret>
+SESSION_ENCRYPTION_KEYS_FILE=/run/secrets/session-encryption-keys
+GOREECLOUD_CONTACTS_DATA_PATH=/srv/docker/appdata/goreecloud-contacts
+GOREECLOUD_CONTACTS_SESSION_SECRET_PATH=/srv/docker/secrets/goreecloud-contacts/session-encryption-keys
 ```
 
 `https://calendar.goreecloud.com` is the current verified CardDAV service identity in the GoreeCloud Contacts records. A planned move to `dav.goreecloud.com` must not be assumed or embedded into production until that separate migration is completed and documented.
-
-### Secret handling
-
-`SESSION_ENCRYPTION_KEYS` is reusable sensitive material. Store it only through an approved protected runtime secret/environment mechanism. Do not print it during troubleshooting, place it in documentation, commit it, or copy it into a container image.
-
-The first key encrypts new sessions. Older keys may remain temporarily as decryption fallback during controlled rotation.
 
 ## Build and Compose Validation
 
@@ -131,11 +176,13 @@ From an exact reviewed source revision:
 docker build -f docker/Dockerfile -t goreecloud/contacts:<reviewed-tag> .
 ```
 
-Before deployment, validate the Compose model:
+Before deployment, validate the Compose model from the documented stack/repository context:
 
 ```bash
 docker compose -f docker/compose.production.yml config
 ```
+
+Because rendered Compose output can expose environment-derived information, review it only in an approved administrative session and do not copy unredacted resolved configuration into ordinary documentation.
 
 Confirm all of the following before startup:
 
@@ -143,6 +190,7 @@ Confirm all of the following before startup:
 - the Contacts service has no `ports:` publication;
 - the production `.env` exists with protected permissions;
 - the `/data` bind path exists with runtime-compatible ownership;
+- the session-encryption secret file exists and is readable by UID `10001` without broad host access;
 - current backup/recovery evidence exists for authoritative Radicale contact data;
 - the current CardDAV endpoint is reachable from the selected runtime without weakening private-access controls.
 
@@ -162,14 +210,14 @@ Start the application with ordinary writes and duplicate merge disabled:
 docker compose -f docker/compose.production.yml up -d --build
 ```
 
-Inspect the container and logs:
+Inspect the container and recent logs:
 
 ```bash
 docker compose -f docker/compose.production.yml ps
 docker logs --since 5m goreecloud-contacts
 ```
 
-Do not continue if startup is unstable, production configuration fails closed, the container cannot reach CardDAV, secrets appear in logs, or the session database cannot be written safely.
+Do not continue if startup is unstable, production configuration fails closed, the container cannot reach CardDAV, the secret file is unreadable, secrets appear in logs, or the session database cannot be written safely.
 
 ## Private DNS Publication
 
@@ -256,7 +304,8 @@ Also validate:
 - sign-in works with production-representative non-family test identities first;
 - one authenticated user cannot discover another user's address books;
 - session state survives worker selection and container restart as designed;
-- logs do not retain query strings, credentials, cookies, VCF bodies, or contact contents unnecessarily;
+- the file-based encryption secret is readable by the application but is not present in ordinary container environment inspection;
+- logs do not retain query strings, credentials, cookies, VCF bodies, contact contents, or encryption keys unnecessarily;
 - Caddy reaches the backend only through the approved Docker network;
 - the Contacts service has no unnecessary host-port publication.
 
@@ -300,7 +349,7 @@ At minimum, production monitoring should distinguish:
 - dependency readiness: `/api/health/ready`;
 - end-user HTTPS reachability at `https://contacts.goreecloud.com`.
 
-Alert routing must be validated rather than assumed. Monitor output must not expose contact data, CardDAV credentials, session tokens, encryption keys, or detailed internal paths.
+Alert routing must be validated rather than assumed. Monitor output must not expose contact data, CardDAV credentials, session tokens, encryption keys, or detailed internal paths unnecessarily.
 
 ## Backup and Recovery
 
@@ -310,8 +359,9 @@ Before production family data is approved:
 2. perform or confirm a restoration test appropriate to the current Radicale architecture;
 3. decide whether the Contacts session database is backed up or treated as disposable authentication state;
 4. protect and recover session encryption key material independently from the session database;
-5. document rollback to the previous reviewed Contacts image/source revision;
-6. confirm that application rollback does not require contact-data rollback unless a separate CardDAV data event occurred.
+5. record the authoritative secret location and recovery method without reproducing the active key;
+6. document rollback to the previous reviewed Contacts image/source revision;
+7. confirm that application rollback does not require contact-data rollback unless a separate CardDAV data event occurred.
 
 ## Rollback
 
@@ -333,7 +383,7 @@ This runtime definition closes the missing source-controlled deployment shape, b
 - CardDAV dependency reachability from the container;
 - production-representative authentication and authorization;
 - persistent session ownership/permissions and restart behavior;
-- protected secret injection, rotation, and recovery;
+- protected file-secret creation, injection, rotation, and recovery;
 - Radicale backup and restore;
 - Caddy/AdGuard Home/NetBird/firewall publication;
 - production log redaction and retention across Caddy/container/host/monitoring layers;
@@ -345,4 +395,4 @@ This runtime definition closes the missing source-controlled deployment shape, b
 - upgrade and rollback rehearsal;
 - controlled production-family onboarding.
 
-The application should remain in a proving/stabilization state until those target gates are evidenced. Stable source code is necessary, but stable GoreeCloud operation also requires validated access, recovery, monitoring, and rollback.
+The application should remain in a proving/stabilization state until those target gates are evidenced. Stable source code is necessary, but stable GoreeCloud operation also requires validated access, recovery, monitoring, secret handling, and rollback.
