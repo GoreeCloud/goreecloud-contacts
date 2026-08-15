@@ -94,3 +94,77 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  runtime:
+    name: Production image smoke test
+    needs:
+      - backend
+      - frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate production Compose definition
+        run: |
+          cp .env.example .env
+          docker compose -f docker/compose.production.yml config >/dev/null
+          rm .env
+
+      - name: Build production image
+        run: docker build -f docker/Dockerfile -t goreecloud-contacts:ci .
+
+      - name: Verify non-root image identity
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' goreecloud-contacts:ci)" = "10001:10001"
+
+      - name: Start hardened production-shaped container
+        run: |
+          SESSION_KEY="$(docker run --rm --entrypoint python goreecloud-contacts:ci -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+          docker run -d \
+            --name contacts-runtime \
+            --no-healthcheck \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=1777 \
+            --tmpfs /data:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700 \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --pids-limit 256 \
+            -e APP_ENV=production \
+            -e FRONTEND_ORIGIN=https://contacts.goreecloud.com \
+            -e CARDDAV_BASE_URL=https://carddav.invalid.example \
+            -e CARDDAV_WRITE_ENABLED=false \
+            -e DUPLICATE_MERGE_ENABLED=false \
+            -e SESSION_COOKIE_SECURE=true \
+            -e SESSION_STORE_BACKEND=sqlite \
+            -e SESSION_DB_PATH=/data/sessions.sqlite3 \
+            -e SESSION_ENCRYPTION_KEYS="$SESSION_KEY" \
+            -e CSRF_ORIGIN_CHECK_ENABLED=true \
+            -p 127.0.0.1:18080:8000 \
+            goreecloud-contacts:ci
+
+      - name: Smoke-test same-origin production surface
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/api/health/live >/tmp/contacts-live.json; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Production runtime did not become live." >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          grep -F '"environment":"production"' /tmp/contacts-live.json
+          curl --fail --silent --show-error http://127.0.0.1:18080/ | grep -F '<title>GoreeCloud Contacts</title>'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/docs)" = "404"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/openapi.json)" = "404"
+          test "$(docker exec contacts-runtime id -u)" = "10001"
+          test "$(docker exec contacts-runtime id -g)" = "10001"
+
+      - name: Show runtime logs
+        if: always()
+        run: docker logs contacts-runtime 2>&1 || true
