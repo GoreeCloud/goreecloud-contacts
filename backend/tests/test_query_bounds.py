@@ -1,5 +1,6 @@
 import app.main as main
 from app.models import MAX_ETAG_CHARS, MAX_RESOURCE_HREF_CHARS
+from app.vcf_models import VcfImportRequest
 
 
 def _query_parameter(path: str, method: str, name: str) -> dict:
@@ -34,3 +35,9 @@ def test_primary_carddav_mutations_bound_etags() -> None:
         parameter = _query_parameter("/api/carddav/contact", method, "etag")
         assert parameter["schema"]["minLength"] == 1
         assert parameter["schema"]["maxLength"] == MAX_ETAG_CHARS
+
+
+def test_vcf_import_destination_reuses_shared_resource_bound() -> None:
+    schema = VcfImportRequest.model_json_schema()["properties"]["address_book_href"]
+    assert schema["minLength"] == 1
+    assert schema["maxLength"] == MAX_RESOURCE_HREF_CHARS
