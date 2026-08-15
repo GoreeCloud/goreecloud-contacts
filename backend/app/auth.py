@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+import json
 from pathlib import Path
 from secrets import token_urlsafe
 import sqlite3
@@ -94,9 +95,10 @@ class SessionStore:
 class SqliteSessionStore:
     """Shared encrypted session storage suitable for multiple backend workers.
 
-    Browser session tokens are never stored in plaintext. CardDAV passwords are
-    encrypted with MultiFernet before persistence. The encryption key material must
-    be supplied separately from the database and source control.
+    Browser session tokens are never stored in plaintext. CardDAV usernames and
+    passwords are encrypted together with MultiFernet before persistence. The
+    encryption key material must be supplied separately from the database and source
+    control.
     """
 
     def __init__(
@@ -145,8 +147,7 @@ class SqliteSessionStore:
                 """
                 CREATE TABLE IF NOT EXISTS sessions (
                     token_digest TEXT PRIMARY KEY,
-                    username TEXT NOT NULL,
-                    encrypted_password BLOB NOT NULL,
+                    encrypted_credentials BLOB NOT NULL,
                     expires_at TEXT NOT NULL
                 )
                 """
@@ -182,6 +183,27 @@ class SqliteSessionStore:
             (self._expiration_text(now),),
         )
 
+    def _encrypt_credentials(self, username: str, password: str) -> bytes:
+        payload = json.dumps(
+            {"username": username, "password": password},
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return self._cipher.encrypt(payload)
+
+    def _decrypt_credentials(self, encrypted_credentials: bytes) -> tuple[str, str] | None:
+        try:
+            payload = json.loads(self._cipher.decrypt(encrypted_credentials).decode("utf-8"))
+        except (InvalidToken, UnicodeDecodeError, json.JSONDecodeError):
+            return None
+
+        username = payload.get("username") if isinstance(payload, dict) else None
+        password = payload.get("password") if isinstance(payload, dict) else None
+        if not isinstance(username, str) or not username.strip():
+            return None
+        if not isinstance(password, str) or not password:
+            return None
+        return username, password
+
     def create(self, *, username: str, password: str) -> SessionRecord:
         normalized_username = username.strip()
         if not normalized_username or not password:
@@ -195,7 +217,7 @@ class SqliteSessionStore:
             password=password,
             expires_at=now + timedelta(seconds=self.ttl_seconds),
         )
-        encrypted_password = self._cipher.encrypt(password.encode("utf-8"))
+        encrypted_credentials = self._encrypt_credentials(normalized_username, password)
 
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -205,15 +227,13 @@ class SqliteSessionStore:
                     """
                     INSERT INTO sessions (
                         token_digest,
-                        username,
-                        encrypted_password,
+                        encrypted_credentials,
                         expires_at
-                    ) VALUES (?, ?, ?, ?)
+                    ) VALUES (?, ?, ?)
                     """,
                     (
                         self._token_digest(token),
-                        normalized_username,
-                        encrypted_password,
+                        encrypted_credentials,
                         self._expiration_text(record.expires_at),
                     ),
                 )
@@ -235,7 +255,7 @@ class SqliteSessionStore:
             self._prune(connection, now)
             row = connection.execute(
                 """
-                SELECT username, encrypted_password, expires_at
+                SELECT encrypted_credentials, expires_at
                 FROM sessions
                 WHERE token_digest = ?
                 """,
@@ -250,14 +270,14 @@ class SqliteSessionStore:
             self.delete(token)
             return None
 
-        try:
-            password = self._cipher.decrypt(row["encrypted_password"]).decode("utf-8")
-        except (InvalidToken, UnicodeDecodeError):
+        credentials = self._decrypt_credentials(row["encrypted_credentials"])
+        if credentials is None:
             return None
+        username, password = credentials
 
         return SessionRecord(
             token=token,
-            username=row["username"],
+            username=username,
             password=password,
             expires_at=expires_at,
         )
