@@ -1,9 +1,10 @@
 [project]
 name = "goreecloud-contacts-backend"
 version = "0.1.0"
-description = "Read-only CardDAV API for the GoreeCloud Contacts web application"
+description = "CardDAV API for the GoreeCloud Contacts web application"
 requires-python = ">=3.10"
 dependencies = [
+  "cryptography==49.0.0",
   "fastapi[standard]==0.139.2",
   "httpx==0.28.1",
 ]
