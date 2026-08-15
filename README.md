@@ -1,60 +1,60 @@
 # GoreeCloud Contacts
 
-GoreeCloud Contacts is my private, self-hosted personal and family contact-management web application. I am building it as a GoreeCloud-native web interface for contacts stored through CardDAV.
+GoreeCloud Contacts is my private, self-hosted personal and family contact-management web application. I am building it as a GoreeCloud-native browser interface over standards-based CardDAV while keeping Radicale authoritative.
 
 ## Project Status
 
-**Status:** Active development — Milestone 4 Phase 4C duplicate detection and user-reviewed merge implementation; isolated live validation pending
+**Status:** Active development — Milestone 4 Phase 4C duplicate detection and user-reviewed merge is source-complete with isolated live acceptance pending; Phase 4D Glaze UI/readiness refinement is in stacked draft review; production deployment remains unapproved.
 
-Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
+Milestones 1–3 established CardDAV discovery, ETag-protected writes, Radicale-backed per-user authentication, opaque server-side sessions, and verified multi-user address-book isolation.
 
-Milestone 3 adds per-user Radicale authentication, opaque server-side sessions, strict application-level address-book isolation, logout/session-expiration behavior, and live negative two-user authorization validation.
+Milestone 4 Phase 4A expanded the structured contact model and browser workflows. Phase 4B added raw VCF import/export and validated portability. Phase 4C adds read-only duplicate suggestions and conflict-safe user-reviewed merge. Phase 4D begins the dedicated Glaze UI, accessibility, and responsive-resilience pass.
 
-Milestone 4 Phase 4A expands the contact model with structured names, organization/title, addresses, birthdays, websites, notes, categories, favorites, HTTP(S) photo-reference awareness, full contact-detail retrieval, and expanded browser workflows. Phase 4B adds raw VCF import/export and validated portability through Radicale. Both phases are merged to `main`. Phase 4C is implementing read-only duplicate suggestions plus an explicit, ETag-protected, user-reviewed merge workflow. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
+Production-readiness work is intentionally separate from product feature completion. Current stacked source increments add fail-closed production HTTPS/Secure-cookie/CSRF requirements, encrypted shared SQLite sessions, liveness/readiness probes, API no-store privacy controls, bounded contact/VCF inputs, dependency vulnerability auditing, and Glaze UI validation. These source controls do not replace target-environment acceptance.
+
+No production family contact data is approved for development or acceptance testing yet.
 
 ## Role
 
-I will use GoreeCloud Contacts to provide a modern browser-based interface for managing personal and family contacts while preserving CardDAV as the portable synchronization standard.
+I use GoreeCloud Contacts to provide a modern browser-based interface for managing personal and family contacts while preserving CardDAV as the portable synchronization standard.
 
 ## Architecture
-
-The application model is:
 
 ```text
 Approved browser
   |
   | HTTPS / opaque application session
   v
-GoreeCloud Contacts
+GoreeCloud Contacts frontend + backend
   |
-  | CardDAV using the signed-in user's credentials
+  | CardDAV using the signed-in user's authorized credentials
   v
 Radicale
   |
   | CardDAV
   v
-DAVx5
-  |
-  v
-Android Contacts Provider
+DAVx5 and other approved CardDAV clients
 ```
 
-Radicale remains the authoritative CardDAV service. GoreeCloud Contacts does not create a competing contact database for ordinary contact data.
+Radicale remains the authoritative contact store. GoreeCloud Contacts does not create a competing contacts database.
 
 Each user authenticates with an approved Radicale/CardDAV identity. The backend performs CardDAV operations as that user and independently restricts requested address books and contact resources to collections discovered for the authenticated session.
 
 ## Technology Direction
 
 - Frontend: React + TypeScript + Vite
+- Design language: GoreeCloud Glaze UI
 - Backend: Python + FastAPI
 - Contact protocol: CardDAV
 - Contact format: vCard
 - Authoritative contact service: Radicale
 - Android synchronization: DAVx5
 - Application authentication: Radicale-backed per-user sign-in
-- Application sessions: opaque server-side sessions
-- Deployment: Docker and Docker Compose
-- Reverse proxy: Caddy
+- Browser session: opaque HttpOnly cookie; Secure required in production
+- Development session backend: in-memory
+- Production session backend: shared SQLite with hashed browser-token lookup and encrypted CardDAV credential payload
+- Deployment direction: Docker and Docker Compose; final production placement not yet approved
+- Private HTTPS gateway: Caddy, subject to final private-publication acceptance
 - Development platform: GitHub
 
 Technology selections remain subject to implementation and production-readiness validation.
@@ -63,21 +63,15 @@ Technology selections remain subject to implementation and production-readiness 
 
 ```text
 goreecloud-contacts/
-├── frontend/
 ├── backend/
+│   ├── app/
+│   ├── scripts/
+│   └── tests/
+├── frontend/
+│   ├── scripts/
+│   └── src/
 ├── docker/
-├── tests/
 ├── docs/
-│   ├── architecture.md
-│   ├── carddav.md
-│   ├── development.md
-│   ├── security.md
-│   ├── milestone-1-carddav-poc.md
-│   ├── milestone-2-carddav-writes.md
-│   ├── milestone-3-authentication-isolation.md
-│   ├── milestone-4-expanded-contact-model.md
-│   ├── milestone-4-vcf-import-export.md
-│   └── milestone-4-duplicate-detection-merge.md
 ├── .github/workflows/ci.yml
 ├── .env.example
 ├── .gitignore
@@ -85,117 +79,132 @@ goreecloud-contacts/
 └── README.md
 ```
 
+Important current records include the Milestone 4 Phase 4A–4D documents and the production-readiness security, session, monitoring, API-privacy, input-bound, and dependency-audit records under `docs/`.
+
 ## Development Milestones
 
 ### Milestone 1 — Read-Only CardDAV Proof of Concept — Complete
 
 - Implemented the React/TypeScript frontend and FastAPI backend foundation.
-- Authenticated to an isolated Radicale test account through protected local configuration.
-- Discovered CardDAV principals, address-book homes, and address books.
-- Retrieved synthetic contacts and preserved resource hrefs and ETags.
-- Parsed common vCard fields.
-- Rendered a responsive browser contact list with local search.
-- Added dependency locking and GitHub Actions continuous integration.
-- Validated the complete browser-to-Radicale read path without production family contact data.
+- Discovered CardDAV principals, address-book homes, address books, contacts, resource hrefs, and ETags.
+- Rendered a responsive browser contact list with search.
+- Added dependency locking and GitHub Actions CI.
+- Validated the browser-to-Radicale read path with isolated synthetic data.
 
 ### Milestone 2 — Conditional CardDAV Writes — Complete
 
-- Added controlled contact creation using `If-None-Match: *`.
-- Added ETag-protected contact updates and deletes using `If-Match`.
-- Converted stale CardDAV precondition failures into application conflicts instead of blind overwrites.
-- Added guarded browser create, edit, and delete controls.
-- Preserved contact UIDs during updates.
-- Added vCard serialization for formatted name, multiple email addresses, and multiple phone numbers.
-- Validated create, update, stale-ETag conflict, and delete behavior with isolated synthetic data.
-- Restored `CARDDAV_WRITE_ENABLED=false` after validation.
+- Added contact creation using `If-None-Match: *`.
+- Added ETag-protected updates and deletes using `If-Match`.
+- Converted stale CardDAV precondition failures into application conflicts rather than blind overwrites.
+- Preserved UIDs during updates.
+- Kept mutations behind `CARDDAV_WRITE_ENABLED`.
+- Validated controlled synthetic create/update/conflict/delete behavior and restored read-only safety mode afterward.
 
 ### Milestone 3 — Authentication and Multi-User Isolation — Complete
 
-- Replaced the single application-wide CardDAV identity with per-user Radicale sign-in.
-- Validated user credentials through CardDAV discovery.
-- Added opaque HTTP-only server-side sessions.
-- Kept CardDAV passwords out of browser-readable storage and source control.
-- Required authentication for CardDAV application routes.
-- Constructed CardDAV clients from the authenticated session user's credentials.
-- Restricted address-book access to collections discovered for the signed-in user.
-- Restricted contact-resource access to `.vcf` resources beneath those authorized collections.
-- Preserved the Milestone 2 write gate and ETag protections.
-- Added explicit logout and session-expiration handling.
-- Added credential-safe live validation for authenticated CardDAV behavior.
-- Validated a retained synthetic primary fixture through `goreecloud-contacts-test`.
-- Validated negative two-user isolation with `goreecloud-contacts-isolation-test`; the second user cannot discover the primary test address book and receives HTTP 403 when explicitly selecting it.
-- Validated session expiration with a temporary five-second TTL and restored the normal 28,800-second development TTL afterward.
-- Confirmed `CARDDAV_WRITE_ENABLED=false` remained the live safety state throughout authentication validation.
+- Replaced the application-wide CardDAV identity with per-user Radicale sign-in.
+- Added opaque server-side sessions, logout, and expiration handling.
+- Kept CardDAV passwords out of browser-readable storage.
+- Restricted address-book and contact access to resources authorized for the signed-in user.
+- Validated negative two-user isolation with separate synthetic Radicale identities.
+- Preserved the write gate and ETag protections.
 
 ### Milestone 4 — Expanded Contact Model and Product Workflows — In Progress
 
 #### Phase 4A — Expanded Contact Model — Complete
 
-- Added structured names, organizations, titles, postal addresses, birthdays, websites, notes, categories, favorites, and HTTP(S) photo-reference awareness where supported.
-- Added a full authenticated contact-detail endpoint while preserving per-user CardDAV authorization.
-- Expanded create/update serialization while retaining UID and ETag protections.
-- Added Contacts and Favorites views, broader search, read-only detail viewing, and expanded write-enabled editor workflows.
-- Added expanded parser/serializer tests and credential-safe live read/write validation tooling.
-- Passed isolated live read/detail validation using `goreecloud-contacts-test` with `CARDDAV_WRITE_ENABLED=false`.
-- Passed controlled synthetic live create/detail/update/stale-ETag/delete validation with an HTTP(S) photo reference.
-- Passed browser create, Favorites filtering, expanded edit, unfavorite, and delete validation using a disposable synthetic contact while preserving the retained Jordan Example fixture.
-- Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after live mutation validation.
-- Corrected structured API validation-error presentation after browser validation exposed `[object Object]` for FastAPI/Pydantic detail arrays.
-- Final exact-head CI passed and Phase 4A was squash-merged to `main` as `1e2675390e06e9485bf664b53b0552c2e4575cd4`.
+- Added structured names, organizations, titles, postal addresses, birthdays, websites, notes, categories, favorites, and supported photo-reference awareness.
+- Added authenticated full-detail retrieval and expanded create/update serialization.
+- Added Contacts/Favorites views, broader search, detail viewing, and expanded editor workflows.
+- Passed isolated API/browser validation and merged Phase 4A to `main`.
 
 #### Phase 4B — VCF Import and Export — Complete
 
-- Implemented single-contact and full address-book VCF export using raw CardDAV vCard data.
-- Implemented VCF 3.0/4.0 import preview and validation before any mutation.
-- Required explicit destination address-book selection and selected preview records.
-- Preserved unknown source properties where possible and generated a UID only when missing.
-- Kept actual import behind `CARDDAV_WRITE_ENABLED` and created new resources with `If-None-Match: *`.
-- Passed 27 backend tests, frontend lint, frontend production build, implementation-head CI, isolated live acceptance, and final exact-head CI.
-- Passed isolated read-only export/preview, unsupported-version rejection, malformed-input rejection, controlled synthetic import, raw VCF round-trip preservation, and cleanup validation.
-- Confirmed the tested unknown `X-GOREECLOUD-TEST` property and source UID survived import through Radicale and subsequent raw export.
-- Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after controlled validation and confirmed Jordan Example remained the only retained test contact.
-- Phase 4B was squash-merged to `main` as `eead31afb86894fcf5ed44c32ba7cbd8c5fa30a0`.
+- Added raw single-contact and full-address-book VCF export.
+- Added VCF 3.0/4.0 preview/import with explicit destination and record selection.
+- Preserved unknown raw source properties where practical and generated UIDs only when missing.
+- Kept import behind the write gate and conflict-safe create semantics.
+- Validated raw VCF round-trip portability through Radicale and merged Phase 4B to `main`.
 
-#### Phase 4C — Duplicate Detection and Merge — In Progress
+#### Phase 4C — Duplicate Detection and User-Reviewed Merge — Source Complete; Live Acceptance Pending
 
-- Added read-only duplicate-candidate detection using exact UID plus normalized names, emails, and telephone numbers, with organization/title as supporting signals.
-- Added confidence/score presentation as a review aid without automatic identity decisions or automatic merges.
-- Added user-reviewed merge previews, survivor selection, primary/duplicate value choices for scalar conflicts, and multi-value field unions.
-- Added raw passthrough-property preservation from both source vCards where possible while retaining the chosen survivor UID.
-- Added write-gated, dual-ETag validation before mutation, conditional survivor update, and conditional duplicate deletion only after the survivor is confirmed written.
-- Added partial-failure handling that prefers duplicate retention over possible information loss when duplicate deletion cannot be confirmed.
-- Added the responsive Phase 4C browser review panel without automatically loading external photo URLs.
-- Backend automated validation currently passes 34 tests with the two existing nonblocking warnings; frontend lint and production build pass.
-- Isolated read-only and controlled synthetic live acceptance remain required before Phase 4C can be completed or merged.
+- Scans only the selected address book authorized for the signed-in user.
+- Suggests duplicate candidates using exact UID and normalized name/email/phone signals with supporting organization/title evidence.
+- Never performs an automatic merge or identity decision.
+- Lets the user select the survivor and explicitly resolve scalar conflicts.
+- Unions/deduplicates multi-value fields and preserves the chosen survivor UID.
+- Re-reads both raw resources and verifies both reviewed ETags before mutation.
+- Updates the survivor conditionally before conditionally deleting the superseded resource.
+- Keeps information rather than attempting unsafe rollback when a post-write delete result is ambiguous.
+- Preserves unsupported raw vCard properties from both records where practical.
+- Has automated stale-ETag and partial-failure regression coverage.
+- Still requires controlled isolated live acceptance, cleanup, and safety-state restoration before Phase 4C can close.
 
-#### Phase 4D — Product and Glaze UI Refinement
+#### Phase 4D — Glaze UI and Product Readiness — In Progress
 
-- Continue responsive, dark-mode, keyboard, accessibility, and error-state refinement.
-- Align GoreeCloud Contacts with the GoreeCloud Glaze UI design language.
-- Refine category, favorite, and photo workflows after interoperability/privacy validation.
-- Normalize editor helper text and placeholders to the final supported photo-reference model.
+- Added a dedicated `frontend/src/glaze.css` token and presentation layer.
+- Added layered/selectively translucent surfaces, rounded geometry, restrained shadows, semantic colors, and ambient gradients without introducing third-party browser assets.
+- Unified VCF and duplicate-management feature surfaces through shared Glaze compatibility tokens.
+- Added explicit keyboard `:focus-visible` treatment.
+- Added coarse-pointer touch-target improvements.
+- Added reduced-motion and reduced-transparency behavior.
+- Corrected the mobile breakpoint so Create contact, Contacts/Favorites navigation, address-book selection, and the write-safety indicator remain available instead of disappearing with the desktop sidebar.
+- Added a dependency-free Glaze UI source validator and made it a CI gate.
+- Added light/dark browser theme-color metadata while retaining operating-system color-scheme behavior.
+- Production-representative visual/browser acceptance remains a separate gate.
 
-### Milestone 5 — Production Readiness and Deployment
+### Milestone 5 — Production Readiness and Deployment — In Progress; Deployment Not Approved
 
-- Complete authentication, authorization, session, and security review.
-- Decide and validate the production session-storage model.
-- Validate CSRF protections for the final deployment architecture.
-- Build and validate the Docker deployment.
-- Validate backup and restoration requirements.
-- Publish through the approved private Caddy/DNS/NetBird service model.
-- Add monitoring and operational validation.
-- Document rollback and recovery procedures.
-- Do not use production family contacts until the required production gates are complete.
+Source-level controls currently include:
 
-## Security Rules
+- fail-closed production HTTPS configuration;
+- Secure session-cookie requirement;
+- centralized Origin/Referer CSRF enforcement for unsafe requests;
+- encrypted shared SQLite production sessions with hashed token lookup and key rotation support;
+- liveness and dependency-readiness endpoints;
+- API/browser no-store privacy behavior;
+- bounded contact, duplicate-workflow, and VCF inputs;
+- Python and npm dependency vulnerability auditing;
+- a narrowly documented temporary `cryptography` advisory exception guarded against use of the affected PKCS#7 decrypt API surface;
+- Glaze UI/accessibility/responsive source validation.
 
-I will not commit passwords, active CardDAV credentials, tokens, private keys, session values, or other reusable credentials to this repository.
+The following still require separate evidence before production approval:
 
-The browser must never receive a user's CardDAV password after sign-in. The current Milestone 3 session model keeps the password only in backend process memory while the browser holds a random opaque HTTP-only session token.
+- Phase 4C isolated live acceptance and cleanup;
+- production-representative authentication/authorization validation;
+- final worker/process/session persistence validation on the selected runtime;
+- secret injection, ownership, permissions, rotation, and recovery;
+- application configuration and authoritative Radicale backup/restore;
+- recovery and rollback rehearsal;
+- private DNS/Caddy/NetBird/firewall publication validation;
+- actual monitoring and alert delivery;
+- production logging/redaction and server-level request controls;
+- authentication abuse controls appropriate to the final runtime;
+- container/operating-system security scanning when a final deployment image/runtime exists;
+- production-representative desktop and mobile-browser acceptance;
+- DAVx5 coexistence/conflict testing;
+- export/portability acceptance;
+- controlled production-family onboarding.
 
-Authentication does not grant unrestricted CardDAV access. Every address-book and contact request must remain within the collections authorized for the signed-in user.
+## Security and Privacy Rules
 
-Development and validation must use isolated test accounts, test address books, and synthetic contact data whenever practical. Production family contact data must not be used as a convenient development dataset.
+I do not commit passwords, active CardDAV credentials, tokens, private keys, session values, or other reusable credentials to this repository.
+
+The browser never receives a user's CardDAV password after sign-in. It holds only a random opaque HttpOnly session token. Production additionally requires a Secure cookie and HTTPS frontend/CardDAV origins.
+
+Development may use the process-local in-memory session backend. Production is required to use the shared SQLite session backend, which stores a SHA-256 digest of the opaque browser token and encrypts the CardDAV username/password payload using protected Fernet key material kept outside the database and source control.
+
+Authentication never grants unrestricted CardDAV access. Every address-book and contact-resource request remains constrained to collections authorized for the signed-in user.
+
+API responses are explicitly marked non-cacheable, and the frontend requests API resources with `cache: 'no-store'`. Contact and credential information must remain minimized in logs, errors, browser state, diagnostics, and monitoring output.
+
+Development and validation use isolated test accounts, test address books, and synthetic contact data whenever practical. Production family contact data is not a development dataset.
+
+## Glaze UI Boundary
+
+Glaze UI is the shared visual and interaction language for GoreeCloud Contacts. Contacts keeps its Google Contacts-inspired product ergonomics without copying proprietary branding.
+
+The Glaze implementation is self-hosted and privacy-conscious. It does not add analytics, advertising, external fonts, remote CSS, or third-party browser scripts. Visual effects remain subordinate to readability, accessibility, performance, and clear interaction states.
 
 ## License
 

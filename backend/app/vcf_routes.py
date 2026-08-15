@@ -14,7 +14,7 @@ from .carddav import (
     CardDavNotFound,
 )
 from .config import Settings
-from .models import ContactDetail
+from .models import MAX_RESOURCE_HREF_CHARS, ContactDetail
 from .vcf import ensure_vcard_uid, inspect_vcard, normalize_vcard_record, split_vcards
 from .vcf_models import (
     VcfImportPreviewItem,
@@ -174,7 +174,7 @@ def build_vcf_router(settings: Settings, session_store: SessionStore) -> APIRout
     @router.get("/api/carddav/contact/export")
     async def export_contact(
         session: AuthenticatedSession,
-        href: Annotated[str, Query(min_length=1)],
+        href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
     ) -> Response:
         client = carddav_client(session)
         try:
@@ -193,7 +193,10 @@ def build_vcf_router(settings: Settings, session_store: SessionStore) -> APIRout
     @router.get("/api/carddav/address-book/export")
     async def export_address_book(
         session: AuthenticatedSession,
-        address_book_href: Annotated[str, Query(min_length=1)],
+        address_book_href: Annotated[
+            str,
+            Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+        ],
     ) -> Response:
         client = carddav_client(session)
         try:

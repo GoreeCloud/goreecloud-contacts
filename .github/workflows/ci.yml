@@ -86,6 +86,9 @@ jobs:
       - name: Audit frontend dependencies
         run: npm audit
 
+      - name: Validate Glaze UI requirements
+        run: npm run validate:ui
+
       - name: Lint frontend
         run: npm run lint
 

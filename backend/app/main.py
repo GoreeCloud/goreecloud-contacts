@@ -19,6 +19,8 @@ from .health import carddav_transport_ready
 from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
+    MAX_ETAG_CHARS,
+    MAX_RESOURCE_HREF_CHARS,
     AddressBook,
     AuthSessionResponse,
     CardDavStatusResponse,
@@ -282,7 +284,10 @@ async def address_books(session: AuthenticatedSession) -> list[AddressBook]:
 @app.get("/api/carddav/contacts", response_model=list[ContactSummary])
 async def contacts(
     session: AuthenticatedSession,
-    address_book_href: Annotated[str, Query(min_length=1)],
+    address_book_href: Annotated[
+        str,
+        Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+    ],
 ) -> list[ContactSummary]:
     try:
         return await _carddav_client(session).list_contacts(address_book_href)
@@ -293,7 +298,7 @@ async def contacts(
 @app.get("/api/carddav/contact", response_model=ContactDetail)
 async def contact(
     session: AuthenticatedSession,
-    href: Annotated[str, Query(min_length=1)],
+    href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
 ) -> ContactDetail:
     try:
         return await _carddav_client(session).get_contact(href)
@@ -309,7 +314,10 @@ async def contact(
 async def create_contact(
     payload: ContactWriteRequest,
     session: AuthenticatedSession,
-    address_book_href: Annotated[str, Query(min_length=1)],
+    address_book_href: Annotated[
+        str,
+        Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+    ],
 ) -> ContactDetail:
     try:
         return await _carddav_client(session, require_write=True).create_contact(
@@ -326,8 +334,8 @@ async def create_contact(
 async def update_contact(
     payload: ContactWriteRequest,
     session: AuthenticatedSession,
-    href: Annotated[str, Query(min_length=1)],
-    etag: Annotated[str, Query(min_length=1)],
+    href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
+    etag: Annotated[str, Query(min_length=1, max_length=MAX_ETAG_CHARS)],
 ) -> ContactDetail:
     try:
         return await _carddav_client(session, require_write=True).update_contact(
@@ -344,8 +352,8 @@ async def update_contact(
 @app.delete("/api/carddav/contact", response_model=ContactDeleteResponse)
 async def delete_contact(
     session: AuthenticatedSession,
-    href: Annotated[str, Query(min_length=1)],
-    etag: Annotated[str, Query(min_length=1)],
+    href: Annotated[str, Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS)],
+    etag: Annotated[str, Query(min_length=1, max_length=MAX_ETAG_CHARS)],
 ) -> ContactDeleteResponse:
     try:
         await _carddav_client(session, require_write=True).delete_contact(href, etag)
