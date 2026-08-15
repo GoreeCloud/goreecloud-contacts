@@ -1,7 +1,9 @@
 import logging
 
-import app.main  # noqa: F401  # Importing the application installs logging privacy controls.
+from fastapi.testclient import TestClient
+
 from app.logging_privacy import QueryStringRedactionFilter, configure_access_log_privacy
+from app.main import app
 
 
 def _access_record(request_target: str) -> logging.LogRecord:
@@ -14,6 +16,11 @@ def _access_record(request_target: str) -> logging.LogRecord:
         args=("127.0.0.1:50000", "GET", request_target, "1.1", 200),
         exc_info=None,
     )
+
+
+def _privacy_filters() -> list[logging.Filter]:
+    logger = logging.getLogger("uvicorn.access")
+    return [item for item in logger.filters if isinstance(item, QueryStringRedactionFilter)]
 
 
 def test_query_string_is_removed_from_uvicorn_access_record() -> None:
@@ -40,18 +47,25 @@ def test_queryless_request_target_is_preserved() -> None:
     assert record.getMessage().endswith('GET /api/health/ready HTTP/1.1" 200')
 
 
-def test_application_installs_access_log_privacy_filter() -> None:
-    logger = logging.getLogger("uvicorn.access")
+def test_application_import_installs_access_log_privacy_filter() -> None:
+    assert len(_privacy_filters()) == 1
 
-    filters = [item for item in logger.filters if isinstance(item, QueryStringRedactionFilter)]
-    assert len(filters) == 1
+
+def test_application_lifespan_reapplies_filter_after_logger_reconfiguration() -> None:
+    logger = logging.getLogger("uvicorn.access")
+    logger.filters = [
+        item for item in logger.filters if not isinstance(item, QueryStringRedactionFilter)
+    ]
+    assert _privacy_filters() == []
+
+    with TestClient(app):
+        assert len(_privacy_filters()) == 1
+
+    assert len(_privacy_filters()) == 1
 
 
 def test_access_log_privacy_configuration_is_idempotent() -> None:
-    logger = logging.getLogger("uvicorn.access")
-
     configure_access_log_privacy()
     configure_access_log_privacy()
 
-    filters = [item for item in logger.filters if isinstance(item, QueryStringRedactionFilter)]
-    assert len(filters) == 1
+    assert len(_privacy_filters()) == 1
