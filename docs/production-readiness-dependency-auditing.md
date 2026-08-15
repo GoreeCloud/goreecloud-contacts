@@ -4,23 +4,49 @@
 
 This increment adds known-vulnerability checks to GoreeCloud Contacts continuous integration so a pull request cannot be considered green solely because application tests, linting, and builds pass.
 
-The audits are detection gates. They do not automatically modify dependencies, suppress advisories, or approve production deployment.
+The audits are detection gates. They do not automatically modify dependencies or approve production deployment.
 
 ## Python dependency audit
 
 CI installs `pip-audit==2.10.1` as a pinned audit tool and runs it against the backend project definition.
 
-The audit evaluates the dependency resolution declared by `backend/pyproject.toml` for publicly known Python package vulnerabilities. A reported vulnerability produces a non-zero exit status and fails the backend CI job.
+The audit evaluates the dependency resolution declared by `backend/pyproject.toml` for publicly known Python package vulnerabilities. A reported vulnerability normally produces a non-zero exit status and fails the backend CI job.
 
 The audit is intentionally separate from the GoreeCloud Contacts runtime dependency list. `pip-audit` is a CI/security tool, not an application runtime requirement.
 
-No vulnerability IDs are ignored by default. If a future advisory cannot immediately be remediated, any proposed exception must be reviewed and documented separately with the affected package, advisory identifier, exposure analysis, compensating controls, remediation plan, and removal condition. The CI workflow must not silently suppress findings.
+## Current reviewed exception — PYSEC-2026-3552
+
+The first production-readiness audit identified `PYSEC-2026-3552` in `cryptography==49.0.0`.
+
+The advisory affects the PKCS#7 EnvelopedData decryption APIs:
+
+- `pkcs7_decrypt_der`;
+- `pkcs7_decrypt_pem`;
+- `pkcs7_decrypt_smime`.
+
+The issue can expose a Bleichenbacher oracle when an application repeatedly decrypts attacker-controlled PKCS#7 EnvelopedData and reflects distinguishable failure behavior. The advisory records the affected range as cryptography 44.0.0 through 49.0.0 and identifies 50.0.0 as the fixed version.
+
+At the time this exception was recorded, cryptography 49.0.0 remains the latest stable PyPI release and 50.0.0 is not yet available as a stable release. GoreeCloud Contacts does not use PKCS#7 EnvelopedData decryption. Its session encryption imports and uses Fernet/MultiFernet only.
+
+CI therefore contains one explicit temporary exception:
+
+`--ignore-vuln PYSEC-2026-3552`
+
+This exception is accepted only with the following compensating controls:
+
+1. `backend/tests/test_dependency_security.py` scans the application source and fails if the affected PKCS#7 module or decryption API names are introduced.
+2. No application feature may add the affected PKCS#7 decryption surface while this exception exists.
+3. The exception must be removed and cryptography upgraded once an appropriate fixed stable release is available and passes the full GoreeCloud Contacts validation suite.
+4. Any change to the application cryptography usage requires reevaluation of this exception before merge.
+5. No additional vulnerability ID may be added to the ignore list without its own documented exposure analysis and removal condition.
+
+This is a scope-specific risk decision, not a claim that cryptography 49.0.0 is generally free of the advisory.
 
 ## Frontend dependency audit
 
 The frontend already uses a committed `package-lock.json` and reproducible `npm ci` installation.
 
-CI now runs `npm audit` immediately after installation. The command audits the resolved lockfile dependency tree and returns a failing exit status when known vulnerabilities are reported.
+CI runs `npm audit` immediately after installation. The command audits the resolved lockfile dependency tree and returns a failing exit status when known vulnerabilities are reported.
 
 No automatic `npm audit fix` action is used in CI. Dependency changes remain deliberate source changes that can be reviewed and validated through the normal pull-request workflow.
 
@@ -51,10 +77,11 @@ This does not mean every temporary advisory-service outage is an application def
 When a dependency audit reports a vulnerability:
 
 1. Identify the affected direct or transitive package and advisory.
-2. Confirm whether a fixed version is available.
-3. Prefer upgrading to a supported fixed dependency without weakening GoreeCloud requirements.
-4. Re-run backend tests, frontend lint/build, and the dependency audits on the exact resulting commit.
-5. Record any unavoidable exception explicitly rather than adding an undocumented ignore rule.
+2. Confirm whether a fixed stable version is actually available.
+3. Determine whether the vulnerable functionality is reachable in GoreeCloud Contacts.
+4. Prefer upgrading to a supported fixed dependency without weakening GoreeCloud requirements.
+5. If no fixed stable release exists and the vulnerable surface is demonstrably unreachable, document a narrow exception with an automated scope guard and explicit removal condition.
+6. Re-run backend tests, frontend lint/build, and the dependency audits on the exact resulting commit.
 
 The audit tools must not be used as automatic update mechanisms in CI.
 
@@ -77,7 +104,8 @@ The final production image/runtime is not yet approved, so container and operati
 
 This increment is accepted only after exact-head GitHub Actions proves all of the following on the same commit:
 
-- backend dependency audit passes;
+- backend dependency audit passes with only the explicitly documented `PYSEC-2026-3552` exception;
+- the PKCS#7 scope-guard test passes;
 - backend live-helper syntax validation passes;
 - backend tests pass;
 - frontend dependency audit passes;
