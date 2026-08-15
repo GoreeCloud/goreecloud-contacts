@@ -19,7 +19,8 @@ services:
       SESSION_ENCRYPTION_KEYS_FILE: /run/secrets/session-encryption-keys
       DUPLICATE_MERGE_ENABLED: "false"
     secrets:
-      - session_encryption_keys
+      - source: session_encryption_keys
+        target: session-encryption-keys
     volumes:
       - type: bind
         source: ${GOREECLOUD_CONTACTS_DATA_PATH:-/srv/docker/appdata/goreecloud-contacts}
