@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, s
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .auth import SessionRecord, SessionStore
+from .auth import SessionRecord, create_session_store
 from .carddav import (
     CardDavAuthenticationError,
     CardDavAuthorizationError,
@@ -30,7 +30,12 @@ from .models import (
 )
 
 settings = get_settings()
-session_store = SessionStore(settings.session_ttl_seconds)
+session_store = create_session_store(
+    backend=settings.session_store_backend,
+    ttl_seconds=settings.session_ttl_seconds,
+    database_path=settings.session_db_path,
+    encryption_keys=settings.session_encryption_key_list,
+)
 
 app = FastAPI(
     title="GoreeCloud Contacts API",
