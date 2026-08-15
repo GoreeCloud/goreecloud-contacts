@@ -5,14 +5,8 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
 from .auth import SessionRecord, SessionStore
-from .carddav import (
-    CardDavAuthenticationError,
-    CardDavAuthorizationError,
-    CardDavClient,
-    CardDavConflict,
-    CardDavError,
-    CardDavNotFound,
-)
+from .carddav import CardDavAuthorizationError, CardDavClient, CardDavError
+from .carddav_errors import carddav_http_exception
 from .config import Settings
 from .models import MAX_RESOURCE_HREF_CHARS, ContactDetail
 from .vcf import ensure_vcard_uid, inspect_vcard, normalize_vcard_record, split_vcards
@@ -24,18 +18,6 @@ from .vcf_models import (
     VcfImportResponse,
     VcfImportResultItem,
 )
-
-
-def _carddav_failure(exc: CardDavError) -> HTTPException:
-    if isinstance(exc, CardDavAuthenticationError):
-        return HTTPException(status_code=401, detail="CardDAV authentication failed.")
-    if isinstance(exc, CardDavAuthorizationError):
-        return HTTPException(status_code=403, detail=str(exc))
-    if isinstance(exc, CardDavConflict):
-        return HTTPException(status_code=409, detail=str(exc))
-    if isinstance(exc, CardDavNotFound):
-        return HTTPException(status_code=404, detail=str(exc))
-    return HTTPException(status_code=502, detail=str(exc))
 
 
 def _safe_filename(value: str, fallback: str) -> str:
@@ -181,7 +163,7 @@ def build_vcf_router(settings: Settings, session_store: SessionStore) -> APIRout
             raw = await export_contact_vcard(client, href)
             detail = await client.get_contact(href)
         except CardDavError as exc:
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
 
         filename = _safe_filename(detail.formatted_name, "contact") + ".vcf"
         return Response(
@@ -203,7 +185,7 @@ def build_vcf_router(settings: Settings, session_store: SessionStore) -> APIRout
             raw = await export_address_book_vcard(client, address_book_href)
             books = await client.discover_address_books()
         except CardDavError as exc:
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
 
         book_name = next(
             (book.display_name for book in books if book.href == address_book_href),
@@ -298,7 +280,7 @@ def build_vcf_router(settings: Settings, session_store: SessionStore) -> APIRout
                     await client.delete_contact(detail.href, detail.etag)
                 except CardDavError:
                     pass
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         except ValueError as exc:
             for detail in reversed(created):
                 if not detail.etag:
