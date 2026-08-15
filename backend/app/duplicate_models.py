@@ -2,11 +2,13 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from .models import ContactDetail, ContactSummary, ContactWriteRequest
-
-
-MAX_RESOURCE_HREF_CHARS = 4096
-MAX_ETAG_CHARS = 1024
+from .models import (
+    MAX_ETAG_CHARS,
+    MAX_RESOURCE_HREF_CHARS,
+    ContactDetail,
+    ContactSummary,
+    ContactWriteRequest,
+)
 
 
 class DuplicateSignal(BaseModel):
