@@ -5,23 +5,36 @@ The helper uses only the isolated goreecloud-contacts-test identity and known
 synthetic Phase 4C fixtures. Password input is interactive through getpass and
 is never accepted on the command line, written to disk, or printed.
 
-Run the stages in order and change CARDDAV_WRITE_ENABLED only when the stage
-explicitly requires it:
+The helper is intentionally fail-closed for local acceptance. It refuses an
+API base URL with credentials, query/fragment data, or a non-loopback host
+unless --allow-non-loopback is supplied explicitly. Regardless of that override,
+it refuses to run against a backend that reports a production environment.
+
+Run the normal stages in order and change CARDDAV_WRITE_ENABLED only when the
+stage explicitly requires it:
 
   baseline  write gate false; read-only clean baseline
   seed      write gate true; create two disposable raw VCF duplicate fixtures
   review    write gate false; read-only scan/preview and merge-gate validation
   write     write gate true; stale-ETag test, reviewed merge, raw export, cleanup
-  final     write gate false; confirm cleanup and restored safety state
+  final     write gate false; confirm cleanup and restored 8-hour session TTL
+
+If seed or write validation stops after disposable fixtures were created, use:
+
+  cleanup   write gate true; remove only known Phase 4C fixture UIDs, then verify
+            Jordan Example is again the only retained contact
 """
 
 from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+from datetime import datetime, timedelta, timezone
 from getpass import getpass
+from ipaddress import ip_address
 import sys
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -43,6 +56,12 @@ DUPLICATE_ORG = "GoreeCloud Secondary Test"
 PRIMARY_EXTENSION = "X-GOREECLOUD-PHASE4C:primary"
 DUPLICATE_EXTENSION = "X-GOREECLOUD-PHASE4C:secondary"
 
+FINAL_SESSION_TTL_SECONDS = 28_800
+FINAL_SESSION_TTL_TOLERANCE_SECONDS = 300
+PHASE4C_FIXTURE_UIDS = frozenset({PRIMARY_UID, DUPLICATE_UID})
+ALLOWED_CLEANUP_UIDS = frozenset({JORDAN_UID, *PHASE4C_FIXTURE_UIDS})
+PRODUCTION_ENVIRONMENTS = frozenset({"prod", "production"})
+
 
 class ValidationFailure(RuntimeError):
     pass
@@ -61,29 +80,78 @@ def _json(response: httpx.Response) -> Any:
         return response.json()
     except ValueError as exc:
         _fail(
-            f"{response.request.method} {response.request.url} returned non-JSON "
+            f"{response.request.method} {response.request.url.path} returned non-JSON "
             f"content with HTTP {response.status_code}."
         )
         raise AssertionError from exc
 
 
+def _response_detail(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except ValueError:
+        detail = response.text.strip()
+        return (detail[:240] + "...") if len(detail) > 240 else (detail or "<empty>")
+
+    if isinstance(payload, dict) and isinstance(payload.get("detail"), str):
+        detail = payload["detail"].strip()
+        return (detail[:240] + "...") if len(detail) > 240 else (detail or "<empty>")
+    return "<structured response omitted>"
+
+
 def _expect_status(response: httpx.Response, expected: int, label: str) -> Any:
     if response.status_code != expected:
-        detail = response.text.strip()
-        if len(detail) > 700:
-            detail = detail[:700] + "..."
         _fail(
             f"{label}: expected HTTP {expected}, received HTTP "
-            f"{response.status_code}. Response: {detail or '<empty>'}"
+            f"{response.status_code}. Response detail: {_response_detail(response)}"
         )
     return _json(response) if response.content else None
+
+
+def _is_loopback_host(hostname: str) -> bool:
+    normalized = hostname.rstrip(".").casefold()
+    if normalized == "localhost":
+        return True
+    try:
+        return ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
+def _validate_api_base_url(value: str, *, allow_non_loopback: bool) -> str:
+    normalized = value.strip().rstrip("/")
+    parsed = urlparse(normalized)
+
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        _fail("--api-base-url must be an absolute HTTP(S) URL with a hostname.")
+    if parsed.username is not None or parsed.password is not None:
+        _fail("Credentials must never be embedded in --api-base-url.")
+    if parsed.query or parsed.fragment:
+        _fail("--api-base-url must not contain a query string or fragment.")
+    if parsed.path not in {"", "/"}:
+        _fail("--api-base-url must point to the GoreeCloud Contacts API root, not a subpath.")
+    if not _is_loopback_host(parsed.hostname) and not allow_non_loopback:
+        _fail(
+            "Phase 4C live acceptance defaults to a loopback backend. Refusing the non-loopback "
+            "API target. Use --allow-non-loopback only for an explicitly approved isolated test "
+            "backend; production environments are refused regardless."
+        )
+
+    return normalized
 
 
 def _validate_service(client: httpx.Client, *, require_write: bool) -> None:
     health = _expect_status(client.get("/api/health"), 200, "Backend health")
     if health.get("status") != "ok":
         _fail(f"Backend health did not report status=ok: {health!r}")
-    _ok("Backend health endpoint is operational")
+
+    environment = str(health.get("environment") or "").strip()
+    if environment.casefold() in PRODUCTION_ENVIRONMENTS:
+        _fail(
+            f"Phase 4C isolated live acceptance refuses backend environment {environment!r}. "
+            "Production contact data is not approved for this validation."
+        )
+    _ok(f"Backend health endpoint is operational in non-production environment {environment or '<unset>'!r}")
 
     carddav = _expect_status(client.get("/api/carddav/status"), 200, "CardDAV status")
     if not carddav.get("configured"):
@@ -107,7 +175,7 @@ def _validate_service(client: httpx.Client, *, require_write: bool) -> None:
     )
 
 
-def _login(client: httpx.Client) -> None:
+def _login(client: httpx.Client) -> dict[str, Any]:
     password = getpass(f"CardDAV password for {PRIMARY_USERNAME}: ")
     if not password:
         _fail(f"No password was supplied for {PRIMARY_USERNAME}.")
@@ -127,6 +195,7 @@ def _login(client: httpx.Client) -> None:
     if forbidden:
         _fail(f"Authentication response exposed forbidden fields: {sorted(forbidden)}")
     _ok("Radicale-backed sign-in succeeded for the isolated Phase 4C test identity")
+    return payload
 
 
 def _logout(client: httpx.Client) -> None:
@@ -134,6 +203,43 @@ def _logout(client: httpx.Client) -> None:
     if payload.get("authenticated") is not False:
         _fail(f"Logout response remained authenticated: {payload!r}")
     _ok("Application session was invalidated")
+
+
+def _best_effort_logout(client: httpx.Client) -> None:
+    try:
+        client.post("/api/auth/logout")
+    except httpx.HTTPError:
+        pass
+
+
+def _validate_restored_session_ttl(
+    session: dict[str, Any],
+    *,
+    now: datetime | None = None,
+) -> None:
+    raw_expiry = session.get("expires_at")
+    if not isinstance(raw_expiry, str) or not raw_expiry.strip():
+        _fail("Final authentication response did not include a session expiration timestamp.")
+
+    try:
+        expiry = datetime.fromisoformat(raw_expiry.replace("Z", "+00:00"))
+    except ValueError as exc:
+        _fail(f"Session expiration timestamp is not valid ISO-8601: {raw_expiry!r}")
+        raise AssertionError from exc
+
+    if expiry.tzinfo is None:
+        _fail("Session expiration timestamp is missing timezone information.")
+
+    current = now or datetime.now(timezone.utc)
+    remaining = (expiry.astimezone(timezone.utc) - current.astimezone(timezone.utc)).total_seconds()
+    minimum = FINAL_SESSION_TTL_SECONDS - FINAL_SESSION_TTL_TOLERANCE_SECONDS
+    maximum = FINAL_SESSION_TTL_SECONDS + FINAL_SESSION_TTL_TOLERANCE_SECONDS
+    if not minimum <= remaining <= maximum:
+        _fail(
+            "Final session TTL is not the required 28,800-second development safety value. "
+            f"Observed approximately {remaining:.0f} seconds remaining."
+        )
+    _ok("Final authenticated session reflects the restored 28,800-second session TTL")
 
 
 def _validate_book(client: httpx.Client) -> None:
@@ -186,6 +292,21 @@ def _require_clean_baseline(contacts: list[dict[str, Any]]) -> None:
             f"Current contacts: {summary!r}"
         )
     _ok("Jordan Example is the only retained contact in the isolated test address book")
+
+
+def _validate_cleanup_scope(contacts: list[dict[str, Any]]) -> None:
+    _require_jordan(contacts)
+    unexpected = [
+        (item.get("formatted_name"), item.get("uid"))
+        for item in contacts
+        if item.get("uid") not in ALLOWED_CLEANUP_UIDS
+    ]
+    if unexpected:
+        _fail(
+            "Cleanup refused because the isolated address book contains contacts outside the "
+            f"retained Jordan fixture and known Phase 4C fixture UIDs: {unexpected!r}"
+        )
+    _ok("Cleanup scope contains only Jordan Example and known disposable Phase 4C fixture UIDs")
 
 
 def _scan(client: httpx.Client) -> dict[str, Any]:
@@ -568,7 +689,10 @@ def _write(client: httpx.Client) -> None:
         params={"href": fresh["primary"]["href"]},
     )
     if exported.status_code != 200:
-        _fail(f"Merged survivor export returned HTTP {exported.status_code}: {exported.text[:500]}")
+        _fail(
+            "Merged survivor export failed with HTTP "
+            f"{exported.status_code}: {_response_detail(exported)}"
+        )
     raw = exported.text
     for extension in (PRIMARY_EXTENSION, DUPLICATE_EXTENSION):
         if extension not in raw:
@@ -596,8 +720,44 @@ def _write(client: httpx.Client) -> None:
     print("\nNEXT  Restore CARDDAV_WRITE_ENABLED=false and SESSION_TTL_SECONDS=28800, restart the backend, then run --stage final.")
 
 
-def _final(client: httpx.Client) -> None:
+def _cleanup(client: httpx.Client) -> None:
     _login(client)
+    _validate_book(client)
+    contacts = _contacts(client)
+    _validate_cleanup_scope(contacts)
+
+    for uid in (PRIMARY_UID, DUPLICATE_UID):
+        contact = _by_uid(contacts, uid)
+        if contact is None:
+            continue
+
+        href = contact.get("href")
+        etag = contact.get("etag")
+        if not isinstance(href, str) or not href.startswith(PRIMARY_BOOK_HREF):
+            _fail(f"Cleanup refused fixture {uid!r} because its resource path is unexpected.")
+        if not isinstance(etag, str) or not etag.strip():
+            _fail(f"Cleanup refused fixture {uid!r} because it has no usable ETag.")
+
+        deleted = _expect_status(
+            client.delete(
+                "/api/carddav/contact",
+                params={"href": href, "etag": etag},
+            ),
+            200,
+            f"Cleanup Phase 4C fixture {uid}",
+        )
+        if deleted.get("deleted") is not True:
+            _fail(f"Cleanup returned an unexpected response for fixture {uid!r}: {deleted!r}")
+        _ok(f"Removed disposable Phase 4C fixture {uid}")
+
+    _require_clean_baseline(_contacts(client))
+    _logout(client)
+    print("\nNEXT  Restore CARDDAV_WRITE_ENABLED=false and SESSION_TTL_SECONDS=28800, restart the backend, then run --stage final.")
+
+
+def _final(client: httpx.Client) -> None:
+    session = _login(client)
+    _validate_restored_session_ttl(session)
     _validate_book(client)
     contacts = _contacts(client)
     _require_clean_baseline(contacts)
@@ -610,42 +770,65 @@ def _final(client: httpx.Client) -> None:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Validate GoreeCloud Contacts Milestone 4 Phase 4C against the live local API.",
+        description="Validate GoreeCloud Contacts Milestone 4 Phase 4C against the isolated live API.",
     )
     parser.add_argument(
         "--api-base-url",
         default="http://127.0.0.1:8000",
-        help="Local GoreeCloud Contacts backend URL (default: %(default)s)",
+        help="GoreeCloud Contacts backend root URL (loopback by default: %(default)s)",
+    )
+    parser.add_argument(
+        "--allow-non-loopback",
+        action="store_true",
+        help=(
+            "Explicitly allow an approved isolated non-loopback test backend. Production "
+            "environment responses are still refused."
+        ),
     )
     parser.add_argument(
         "--stage",
-        choices=("baseline", "seed", "review", "write", "final"),
+        choices=("baseline", "seed", "review", "write", "cleanup", "final"),
         required=True,
-        help="Run one safety-bounded Phase 4C acceptance stage.",
+        help="Run one safety-bounded Phase 4C acceptance or recovery stage.",
     )
     return parser
 
 
 def main() -> int:
     args = _parser().parse_args()
-    base_url = args.api_base_url.rstrip("/")
-    require_write = args.stage in {"seed", "write"}
+    require_write = args.stage in {"seed", "write", "cleanup"}
 
     try:
+        base_url = _validate_api_base_url(
+            args.api_base_url,
+            allow_non_loopback=args.allow_non_loopback,
+        )
         with httpx.Client(base_url=base_url, timeout=20.0, follow_redirects=False) as client:
-            _validate_service(client, require_write=require_write)
-            if args.stage == "baseline":
-                _baseline(client)
-            elif args.stage == "seed":
-                _seed(client)
-            elif args.stage == "review":
-                _review(client)
-            elif args.stage == "write":
-                _write(client)
-            else:
-                _final(client)
+            try:
+                _validate_service(client, require_write=require_write)
+                if args.stage == "baseline":
+                    _baseline(client)
+                elif args.stage == "seed":
+                    _seed(client)
+                elif args.stage == "review":
+                    _review(client)
+                elif args.stage == "write":
+                    _write(client)
+                elif args.stage == "cleanup":
+                    _cleanup(client)
+                else:
+                    _final(client)
+            except (httpx.HTTPError, ValidationFailure):
+                _best_effort_logout(client)
+                raise
     except (httpx.HTTPError, ValidationFailure) as exc:
         print(f"\nFAIL  {exc}", file=sys.stderr)
+        if args.stage in {"seed", "write", "cleanup"}:
+            print(
+                "RECOVERY  If known Phase 4C fixtures may remain, keep the isolated write gate "
+                "enabled and run --stage cleanup. Cleanup refuses unknown contacts.",
+                file=sys.stderr,
+            )
         return 1
 
     print(f"\nPhase 4C {args.stage} stage PASSED.")

@@ -130,7 +130,9 @@ Before Phase 4C can be considered complete, automated validation must prove at m
 
 ## Required isolated live acceptance
 
-Live acceptance must proceed in two stages.
+The acceptance requirements below are grouped into read-only and controlled-write categories. Operational execution is intentionally divided into the safer `baseline` → `seed` → `review` → `write` → `final` helper stages, with a fixture-scoped `cleanup` recovery stage available after an interrupted synthetic write. The exact procedure is documented in `docs/milestone-4-phase4c-live-acceptance-runbook.md`.
+
+The live helper defaults to a loopback API target, requires an explicit override for an approved isolated non-loopback backend, refuses backends reporting `prod` or `production`, never accepts credentials in the API URL, and limits recovery cleanup to the retained Jordan UID plus the two fixed disposable Phase 4C fixture UIDs. Final validation also checks that a newly issued application session reflects the restored `SESSION_TTL_SECONDS=28800` value.
 
 ### Read-only acceptance
 
