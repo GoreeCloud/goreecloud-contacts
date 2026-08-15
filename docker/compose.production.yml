@@ -26,7 +26,8 @@ services:
         source: ${GOREECLOUD_CONTACTS_DATA_PATH:-/srv/docker/appdata/goreecloud-contacts}
         target: /data
     networks:
-      - proxy
+      proxy:
+        ipv4_address: ${GOREECLOUD_CONTACTS_PROXY_IP:?Set GOREECLOUD_CONTACTS_PROXY_IP to an approved free address on the proxy network}
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
