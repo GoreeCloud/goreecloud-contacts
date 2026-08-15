@@ -61,7 +61,10 @@ The production runtime is intentionally constrained:
 - no host network mode;
 - no application host port published by the production Compose definition;
 - only the external `proxy` Docker network attached;
+- an explicit target-approved `GOREECLOUD_CONTACTS_PROXY_IP` on that network;
 - health checking through `/api/health/ready`.
+
+The explicit proxy-network address provides a stable, least-privilege source identity for HTTPS CardDAV access through Caddy. It must be inspected and approved on each target host; do not grant the entire shared Docker subnet CardDAV access merely to avoid selecting a bounded service identity.
 
 The image uses two Uvicorn workers. Shared SQLite sessions therefore provide worker-compatible authentication state instead of process-local sessions.
 
@@ -121,6 +124,8 @@ When those paths are confirmed for the selected host:
 3. Generate a Fernet key using an approved cryptographically secure method without placing the value into source control, documentation, or shell history when avoidable.
 4. Store the secret file so runtime UID `10001` can read it and other ordinary host users cannot.
 5. Protect the production `.env` with owner-only permissions.
+6. Inspect the external `proxy` network and select a free, approved static address for `GOREECLOUD_CONTACTS_PROXY_IP`.
+7. Reserve that exact address as the Contacts source identity in the CardDAV Caddy access matcher rather than authorizing the whole Docker subnet.
 
 Because Docker Compose implements `file:` secrets using a bind mount, file-source `uid`, `gid`, and `mode` remapping is not available. The **host-side secret file ownership and mode are therefore authoritative for readability by the non-root container**.
 
@@ -164,9 +169,12 @@ SESSION_DB_PATH=/data/sessions.sqlite3
 SESSION_ENCRYPTION_KEYS_FILE=/run/secrets/session-encryption-keys
 GOREECLOUD_CONTACTS_DATA_PATH=/srv/docker/appdata/goreecloud-contacts
 GOREECLOUD_CONTACTS_SESSION_SECRET_PATH=/srv/docker/secrets/goreecloud-contacts/session-encryption-keys
+GOREECLOUD_CONTACTS_PROXY_IP=<approved-free-proxy-network-address>
 ```
 
 `https://calendar.goreecloud.com` is the current verified CardDAV service identity in the GoreeCloud Contacts records. A planned move to `dav.goreecloud.com` must not be assumed or embedded into production until that separate migration is completed and documented.
+
+For target-specific values and evidence, use the applicable target record such as `docs/target-goreecloud-vps-01.md`.
 
 ## Build and Compose Validation
 
@@ -187,6 +195,8 @@ Because rendered Compose output can expose environment-derived information, revi
 Confirm all of the following before startup:
 
 - the `proxy` network exists and is the approved shared Caddy network;
+- `GOREECLOUD_CONTACTS_PROXY_IP` is free and belongs to that network's configured subnet;
+- the CardDAV Caddy matcher is prepared to authorize only that explicit Contacts source identity plus existing approved sources;
 - the Contacts service has no `ports:` publication;
 - the production `.env` exists with protected permissions;
 - the `/data` bind path exists with runtime-compatible ownership;
@@ -198,7 +208,9 @@ Confirm all of the following before startup:
 
 Do not weaken Caddy, NetBird, DNS, or firewall restrictions merely to make the Contacts container reach Radicale.
 
-If `CARDDAV_BASE_URL=https://calendar.goreecloud.com` is not reachable from the production container, inspect the actual DNS resolution, Caddy source-address restriction, Docker networks, and current Radicale publication model. Choose and document an approved internal dependency path rather than bypassing security controls ad hoc.
+Production requires an HTTPS `CARDDAV_BASE_URL`. When CardDAV is reached through a source-restricted Caddy route, assign Contacts a stable approved source identity on the shared Docker network and authorize only that address. Do not replace a bounded source list with the full Docker subnet as a convenience workaround.
+
+If `CARDDAV_BASE_URL=https://calendar.goreecloud.com` is still not reachable from the production container, inspect the actual DNS resolution, Caddy source-address restriction, Docker networks, and current Radicale publication model. Choose and document an approved dependency path rather than bypassing security controls ad hoc.
 
 The application must not be declared ready until `/api/health/ready` reports both the shared session store and CardDAV transport as available.
 
@@ -235,7 +247,7 @@ Do not create a public A or AAAA record for the private Contacts service merely 
 
 Use the existing active Caddy deployment and back up the active Caddyfile before material modification. Validate the complete Caddyfile before reload/recreation.
 
-The intended site pattern is:
+The intended Contacts site pattern is:
 
 ```caddyfile
 contacts.goreecloud.com {
@@ -259,6 +271,8 @@ contacts.goreecloud.com {
 ```
 
 The backend target is the Docker service on the shared `proxy` network. No Contacts host port is required.
+
+The existing CardDAV site must separately authorize the exact Contacts proxy-network source identity required for application-to-CardDAV HTTPS requests. Keep that authorization narrow and target-specific.
 
 Validate before applying:
 
