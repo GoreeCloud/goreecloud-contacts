@@ -1,17 +1,18 @@
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr, model_validator
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .security import configured_frontend_origin, normalize_origin
 
 
 _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
+AppEnvironment = Literal["development", "test", "production"]
 
 
 class Settings(BaseSettings):
-    app_env: str = "development"
+    app_env: AppEnvironment = "development"
     frontend_origin: str = "http://localhost:5173"
     carddav_base_url: str = ""
     carddav_timeout_seconds: float = 15.0
@@ -30,6 +31,23 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    @field_validator("app_env", mode="before")
+    @classmethod
+    def normalize_app_environment(cls, value):
+        if isinstance(value, str):
+            return value.strip().casefold()
+        return value
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env == "production"
+
+    @property
+    def api_documentation_enabled(self) -> bool:
+        # Interactive/API-schema discovery is a development and test aid, not a production
+        # application requirement. Production keeps the routes absent by default.
+        return not self.is_production
 
     @property
     def carddav_configured(self) -> bool:
@@ -52,7 +70,7 @@ class Settings(BaseSettings):
             )
         self.frontend_origin = frontend_origin
 
-        if self.app_env.strip().casefold() != "production":
+        if not self.is_production:
             return self
 
         if not self.session_cookie_secure:
