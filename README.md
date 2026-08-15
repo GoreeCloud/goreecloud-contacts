@@ -10,7 +10,7 @@ Milestones 1–3 established CardDAV discovery, ETag-protected writes, Radicale-
 
 Milestone 4 Phase 4A expanded the structured contact model and browser workflows. Phase 4B added raw VCF import/export and validated portability. Phase 4C adds read-only duplicate suggestions and conflict-safe user-reviewed merge. Phase 4D begins the dedicated Glaze UI, accessibility, and responsive-resilience pass.
 
-Production-readiness work is intentionally separate from product feature completion. Current stacked source increments add fail-closed production HTTPS/Secure-cookie/CSRF requirements, encrypted shared SQLite sessions, liveness/readiness probes, API no-store privacy controls, bounded contact/VCF inputs, dependency vulnerability auditing, and Glaze UI validation. These source controls do not replace target-environment acceptance.
+Production-readiness work is intentionally separate from product feature completion. Current stacked source increments add fail-closed production HTTPS/Secure-cookie/CSRF requirements, encrypted shared SQLite sessions, liveness/readiness probes, API no-store privacy controls, bounded contact/VCF inputs, dependency vulnerability auditing, source-level access-log query minimization, centralized privacy-safe CardDAV browser errors, and Glaze UI validation. These source controls do not replace target-environment acceptance.
 
 No production family contact data is approved for development or acceptance testing yet.
 
@@ -79,7 +79,7 @@ goreecloud-contacts/
 └── README.md
 ```
 
-Important current records include the Milestone 4 Phase 4A–4D documents and the production-readiness security, session, monitoring, API-privacy, input-bound, and dependency-audit records under `docs/`.
+Important current records include the Milestone 4 Phase 4A–4D documents and the production-readiness security, session, monitoring, API-privacy, input-bound, dependency-audit, and logging-privacy records under `docs/`.
 
 ## Development Milestones
 
@@ -166,6 +166,8 @@ Source-level controls currently include:
 - bounded contact, duplicate-workflow, and VCF inputs;
 - Python and npm dependency vulnerability auditing;
 - a narrowly documented temporary `cryptography` advisory exception guarded against use of the affected PKCS#7 decrypt API surface;
+- Uvicorn access-log query-string minimization;
+- centralized browser-safe CardDAV error translation with generic unexpected-failure detail;
 - Glaze UI/accessibility/responsive source validation.
 
 The following still require separate evidence before production approval:
@@ -178,7 +180,8 @@ The following still require separate evidence before production approval:
 - recovery and rollback rehearsal;
 - private DNS/Caddy/NetBird/firewall publication validation;
 - actual monitoring and alert delivery;
-- production logging/redaction and server-level request controls;
+- target-runtime Caddy/proxy/container logging-redaction and retention validation;
+- server-level request controls;
 - authentication abuse controls appropriate to the final runtime;
 - container/operating-system security scanning when a final deployment image/runtime exists;
 - production-representative desktop and mobile-browser acceptance;
@@ -196,7 +199,7 @@ Development may use the process-local in-memory session backend. Production is r
 
 Authentication never grants unrestricted CardDAV access. Every address-book and contact-resource request remains constrained to collections authorized for the signed-in user.
 
-API responses are explicitly marked non-cacheable, and the frontend requests API resources with `cache: 'no-store'`. Contact and credential information must remain minimized in logs, errors, browser state, diagnostics, and monitoring output.
+API responses are explicitly marked non-cacheable, and the frontend requests API resources with `cache: 'no-store'`. Normal Uvicorn access logging removes query strings before formatting, and unexpected CardDAV failures use generic browser-facing error detail rather than reflecting raw upstream exception text. Contact and credential information must remain minimized in logs, errors, browser state, diagnostics, and monitoring output. Reverse-proxy/container/host logging remains a separate production validation boundary.
 
 Development and validation use isolated test accounts, test address books, and synthetic contact data whenever practical. Production family contact data is not a development dataset.
 
