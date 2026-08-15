@@ -13,7 +13,7 @@ from .carddav import (
     CardDavError,
 )
 from .carddav_errors import carddav_http_exception
-from .config import get_settings
+from .config import fastapi_documentation_options, get_settings
 from .duplicate_routes import build_duplicate_router
 from .health import carddav_transport_ready
 from .logging_privacy import configure_access_log_privacy
@@ -62,9 +62,7 @@ app = FastAPI(
         "user-reviewed duplicate detection/merge, and conditional write protection."
     ),
     lifespan=_lifespan,
-    docs_url="/docs" if settings.api_documentation_enabled else None,
-    redoc_url="/redoc" if settings.api_documentation_enabled else None,
-    openapi_url="/openapi.json" if settings.api_documentation_enabled else None,
+    **fastapi_documentation_options(settings.api_documentation_enabled),
 )
 
 app.add_middleware(
