@@ -13,6 +13,9 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
+    <a className="skip-link" href="#contacts">
+      Skip to contacts
+    </a>
     <App />
   </StrictMode>,
 )
