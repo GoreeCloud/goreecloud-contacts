@@ -26,6 +26,7 @@ from .duplicates import (
     merge_vcard_preserving_passthrough,
     propose_duplicate_merge,
 )
+from .models import MAX_RESOURCE_HREF_CHARS
 from .vcard import parse_vcard
 
 
@@ -248,7 +249,10 @@ def build_duplicate_router(settings: Settings, session_store: SessionStore) -> A
     )
     async def duplicates(
         session: AuthenticatedSession,
-        address_book_href: Annotated[str, Query(min_length=1)],
+        address_book_href: Annotated[
+            str,
+            Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+        ],
     ) -> DuplicateScanResponse:
         try:
             return await scan_duplicates(carddav_client(session), address_book_href)
