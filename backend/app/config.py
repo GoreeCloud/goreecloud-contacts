@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Literal
 
-from pydantic import model_validator
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .security import configured_frontend_origin, normalize_origin
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
     session_ttl_seconds: int = 28_800
     session_cookie_name: str = "goreecloud_contacts_session"
     session_cookie_secure: bool = False
+    session_store_backend: Literal["memory", "sqlite"] = "memory"
+    session_db_path: str = "/data/sessions.sqlite3"
+    session_encryption_keys: SecretStr = SecretStr("")
     csrf_origin_check_enabled: bool = False
 
     model_config = SettingsConfigDict(
@@ -31,6 +35,14 @@ class Settings(BaseSettings):
     def carddav_configured(self) -> bool:
         return bool(self.carddav_base_url.strip())
 
+    @property
+    def session_encryption_key_list(self) -> list[str]:
+        return [
+            value.strip()
+            for value in self.session_encryption_keys.get_secret_value().split(",")
+            if value.strip()
+        ]
+
     @model_validator(mode="after")
     def validate_security_boundaries(self) -> "Settings":
         frontend_origin = configured_frontend_origin(self.frontend_origin)
@@ -38,6 +50,7 @@ class Settings(BaseSettings):
             raise ValueError(
                 "FRONTEND_ORIGIN must be one HTTP(S) origin without a path, query, or fragment."
             )
+        self.frontend_origin = frontend_origin
 
         if self.app_env.strip().casefold() != "production":
             return self
@@ -54,6 +67,13 @@ class Settings(BaseSettings):
         carddav_origin = normalize_origin(self.carddav_base_url)
         if carddav_origin is None or not carddav_origin.startswith("https://"):
             raise ValueError("Production requires an HTTPS CARDDAV_BASE_URL.")
+
+        if self.session_store_backend != "sqlite":
+            raise ValueError("Production requires SESSION_STORE_BACKEND=sqlite.")
+        if not self.session_encryption_key_list:
+            raise ValueError("Production requires SESSION_ENCRYPTION_KEYS.")
+        if not Path(self.session_db_path).expanduser().is_absolute():
+            raise ValueError("Production requires SESSION_DB_PATH to be an absolute path.")
 
         return self
 

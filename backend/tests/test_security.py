@@ -1,10 +1,14 @@
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.config import Settings
 from app.main import app, settings
 from app.security import configured_frontend_origin, normalize_origin
+
+
+_TEST_FERNET_KEY = Fernet.generate_key().decode("ascii")
 
 
 def _production_settings(**overrides) -> Settings:
@@ -14,6 +18,9 @@ def _production_settings(**overrides) -> Settings:
         "carddav_base_url": "https://dav.goreecloud.com",
         "session_cookie_secure": True,
         "csrf_origin_check_enabled": True,
+        "session_store_backend": "sqlite",
+        "session_db_path": "/data/sessions.sqlite3",
+        "session_encryption_keys": _TEST_FERNET_KEY,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
@@ -30,11 +37,13 @@ def test_origin_normalization_rejects_non_origins_and_credentials() -> None:
 
 
 def test_production_configuration_accepts_secure_https_boundaries() -> None:
-    configured = _production_settings()
+    configured = _production_settings(frontend_origin="https://CONTACTS.goreecloud.com/")
 
     assert configured.session_cookie_secure is True
     assert configured.csrf_origin_check_enabled is True
     assert configured.frontend_origin == "https://contacts.goreecloud.com"
+    assert configured.session_store_backend == "sqlite"
+    assert configured.session_encryption_key_list == [_TEST_FERNET_KEY]
 
 
 @pytest.mark.parametrize(
@@ -45,6 +54,9 @@ def test_production_configuration_accepts_secure_https_boundaries() -> None:
         ({"frontend_origin": "http://contacts.goreecloud.com"}, "HTTPS FRONTEND_ORIGIN"),
         ({"carddav_base_url": ""}, "CARDDAV_BASE_URL to be configured"),
         ({"carddav_base_url": "http://dav.goreecloud.com"}, "HTTPS CARDDAV_BASE_URL"),
+        ({"session_store_backend": "memory"}, "SESSION_STORE_BACKEND=sqlite"),
+        ({"session_encryption_keys": ""}, "SESSION_ENCRYPTION_KEYS"),
+        ({"session_db_path": "sessions.sqlite3"}, "SESSION_DB_PATH to be an absolute path"),
     ],
 )
 def test_production_configuration_fails_closed(overrides, message) -> None:
