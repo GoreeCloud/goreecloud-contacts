@@ -130,6 +130,7 @@ jobs:
           COMPOSE_SECRET="$RUNNER_TEMP/goreecloud-contacts-compose-secret"
           printf '%s\n' 'synthetic-compose-secret-placeholder' > "$COMPOSE_SECRET"
           GOREECLOUD_CONTACTS_SESSION_SECRET_PATH="$COMPOSE_SECRET" \
+          GOREECLOUD_CONTACTS_PROXY_IP=172.19.0.51 \
             docker compose -f docker/compose.production.yml config > "$RUNNER_TEMP/contacts-compose.yml"
           grep -F 'ipv4_address: 172.19.0.51' "$RUNNER_TEMP/contacts-compose.yml"
           rm .env "$COMPOSE_SECRET" "$RUNNER_TEMP/contacts-compose.yml"
