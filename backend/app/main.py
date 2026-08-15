@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
@@ -43,6 +44,15 @@ session_store = create_session_store(
     encryption_keys=settings.session_encryption_key_list,
 )
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # Reapply after server logging configuration in case the application was imported before
+    # Uvicorn configured its loggers. The installer is idempotent.
+    configure_access_log_privacy()
+    yield
+
+
 app = FastAPI(
     title="GoreeCloud Contacts API",
     version="0.5.0",
@@ -51,6 +61,7 @@ app = FastAPI(
         "per-user collection isolation, expanded vCard contact fields, raw VCF portability, "
         "user-reviewed duplicate detection/merge, and conditional write protection."
     ),
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
