@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .auth import SessionRecord, SessionStore
 from .carddav import (
@@ -14,6 +15,7 @@ from .carddav import (
 )
 from .config import get_settings
 from .duplicate_routes import build_duplicate_router
+from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
     AddressBook,
@@ -47,6 +49,20 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Accept", "Content-Type"],
 )
+
+
+@app.middleware("http")
+async def enforce_browser_mutation_origin(request: Request, call_next):
+    if (
+        settings.csrf_origin_check_enabled
+        and request.method.upper() in UNSAFE_METHODS
+        and not request_origin_is_trusted(request, settings.frontend_origin)
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"detail": "Request origin is not allowed."},
+        )
+    return await call_next(request)
 
 
 app.include_router(build_vcf_router(settings, session_store))
