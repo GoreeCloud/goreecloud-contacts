@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     carddav_base_url: str = ""
     carddav_timeout_seconds: float = 15.0
     carddav_write_enabled: bool = False
+    duplicate_merge_enabled: bool = False
     session_ttl_seconds: int = 28_800
     session_cookie_name: str = "goreecloud_contacts_session"
     session_cookie_secure: bool = False
