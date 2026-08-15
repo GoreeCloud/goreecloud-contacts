@@ -32,6 +32,8 @@ class SessionStoreProtocol(Protocol):
 
     def clear(self) -> None: ...
 
+    def healthcheck(self) -> bool: ...
+
 
 class SessionStore:
     """Process-local opaque session storage for development and isolated testing."""
@@ -81,6 +83,9 @@ class SessionStore:
     def clear(self) -> None:
         with self._lock:
             self._sessions.clear()
+
+    def healthcheck(self) -> bool:
+        return True
 
     def _prune_locked(self, now: datetime) -> None:
         expired = [
@@ -296,6 +301,24 @@ class SqliteSessionStore:
         with self._connect() as connection:
             connection.execute("DELETE FROM sessions")
         self._tighten_permissions()
+
+    def healthcheck(self) -> bool:
+        """Confirm that the shared store can open and acquire a write transaction."""
+
+        try:
+            with self._connect() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                try:
+                    connection.execute(
+                        "UPDATE sessions SET expires_at = expires_at WHERE 0"
+                    )
+                    connection.rollback()
+                except Exception:
+                    connection.rollback()
+                    raise
+            return True
+        except (OSError, sqlite3.Error):
+            return False
 
 
 def create_session_store(

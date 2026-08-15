@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
@@ -8,6 +9,17 @@ class HealthResponse(BaseModel):
     status: str
     service: str
     environment: str
+
+
+class ReadinessChecks(BaseModel):
+    session_store: Literal["ok", "unavailable"]
+    carddav: Literal["ok", "not_configured", "unavailable"]
+
+
+class ReadinessResponse(BaseModel):
+    status: Literal["ready", "not_ready"]
+    service: str
+    checks: ReadinessChecks
 
 
 class CardDavStatusResponse(BaseModel):

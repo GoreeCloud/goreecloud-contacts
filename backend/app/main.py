@@ -15,6 +15,7 @@ from .carddav import (
 )
 from .config import get_settings
 from .duplicate_routes import build_duplicate_router
+from .health import carddav_transport_ready
 from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
@@ -27,6 +28,8 @@ from .models import (
     ContactWriteRequest,
     HealthResponse,
     LoginRequest,
+    ReadinessChecks,
+    ReadinessResponse,
 )
 
 settings = get_settings()
@@ -136,12 +139,57 @@ def _session_response(record: SessionRecord | None) -> AuthSessionResponse:
     )
 
 
-@app.get("/api/health", response_model=HealthResponse)
-async def health() -> HealthResponse:
+def _liveness_response() -> HealthResponse:
     return HealthResponse(
         status="ok",
         service="goreecloud-contacts-backend",
         environment=settings.app_env,
+    )
+
+
+@app.get("/api/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    """Compatibility liveness endpoint retained for existing development checks."""
+
+    return _liveness_response()
+
+
+@app.get("/api/health/live", response_model=HealthResponse)
+async def health_live() -> HealthResponse:
+    """Process liveness only; does not claim dependency readiness."""
+
+    return _liveness_response()
+
+
+@app.get("/api/health/ready", response_model=ReadinessResponse)
+async def health_ready():
+    """Dependency readiness without user credentials or contact-data disclosure."""
+
+    session_ready = session_store.healthcheck()
+    if settings.carddav_configured:
+        carddav_ready = await carddav_transport_ready(
+            settings.carddav_base_url,
+            settings.carddav_timeout_seconds,
+        )
+        carddav_status = "ok" if carddav_ready else "unavailable"
+    else:
+        carddav_ready = False
+        carddav_status = "not_configured"
+
+    ready = session_ready and carddav_ready
+    response = ReadinessResponse(
+        status="ready" if ready else "not_ready",
+        service="goreecloud-contacts-backend",
+        checks=ReadinessChecks(
+            session_store="ok" if session_ready else "unavailable",
+            carddav=carddav_status,
+        ),
+    )
+    if ready:
+        return response
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=response.model_dump(),
     )
 
 
