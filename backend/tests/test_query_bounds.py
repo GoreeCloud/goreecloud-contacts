@@ -13,7 +13,7 @@ def _query_parameter(path: str, method: str, name: str) -> dict:
     return parameters[name]
 
 
-def test_primary_carddav_routes_bound_resource_hrefs() -> None:
+def test_carddav_routes_bound_resource_hrefs() -> None:
     routes = [
         ("/api/carddav/contacts", "get", "address_book_href"),
         ("/api/carddav/contact", "get", "href"),
@@ -22,6 +22,7 @@ def test_primary_carddav_routes_bound_resource_hrefs() -> None:
         ("/api/carddav/contact", "delete", "href"),
         ("/api/carddav/contact/export", "get", "href"),
         ("/api/carddav/address-book/export", "get", "address_book_href"),
+        ("/api/carddav/duplicates", "get", "address_book_href"),
     ]
 
     for path, method, name in routes:
