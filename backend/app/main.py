@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
@@ -9,13 +10,13 @@ from .carddav import (
     CardDavAuthenticationError,
     CardDavAuthorizationError,
     CardDavClient,
-    CardDavConflict,
     CardDavError,
-    CardDavNotFound,
 )
+from .carddav_errors import carddav_http_exception
 from .config import get_settings
 from .duplicate_routes import build_duplicate_router
 from .health import carddav_transport_ready
+from .logging_privacy import configure_access_log_privacy
 from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
@@ -35,12 +36,22 @@ from .models import (
 )
 
 settings = get_settings()
+configure_access_log_privacy()
 session_store = create_session_store(
     backend=settings.session_store_backend,
     ttl_seconds=settings.session_ttl_seconds,
     database_path=settings.session_db_path,
     encryption_keys=settings.session_encryption_key_list,
 )
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    # Reapply after server logging configuration in case the application was imported before
+    # Uvicorn configured its loggers. The installer is idempotent.
+    configure_access_log_privacy()
+    yield
+
 
 app = FastAPI(
     title="GoreeCloud Contacts API",
@@ -50,6 +61,7 @@ app = FastAPI(
         "per-user collection isolation, expanded vCard contact fields, raw VCF portability, "
         "user-reviewed duplicate detection/merge, and conditional write protection."
     ),
+    lifespan=_lifespan,
 )
 
 app.add_middleware(
@@ -131,18 +143,6 @@ def _carddav_client(
         username=session.username,
         password=session.password,
     )
-
-
-def _carddav_failure(exc: CardDavError) -> HTTPException:
-    if isinstance(exc, CardDavAuthenticationError):
-        return HTTPException(status_code=401, detail="CardDAV authentication failed.")
-    if isinstance(exc, CardDavAuthorizationError):
-        return HTTPException(status_code=403, detail=str(exc))
-    if isinstance(exc, CardDavConflict):
-        return HTTPException(status_code=409, detail=str(exc))
-    if isinstance(exc, CardDavNotFound):
-        return HTTPException(status_code=404, detail=str(exc))
-    return HTTPException(status_code=502, detail=str(exc))
 
 
 def _session_response(record: SessionRecord | None) -> AuthSessionResponse:
@@ -238,7 +238,7 @@ async def login(payload: LoginRequest, response: Response) -> AuthSessionRespons
             detail="Unable to sign in with the supplied CardDAV credentials.",
         ) from exc
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
     record = session_store.create(username=username, password=password)
     response.set_cookie(
@@ -278,7 +278,7 @@ async def address_books(session: AuthenticatedSession) -> list[AddressBook]:
     try:
         return await _carddav_client(session).discover_address_books()
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
 
 @app.get("/api/carddav/contacts", response_model=list[ContactSummary])
@@ -292,7 +292,7 @@ async def contacts(
     try:
         return await _carddav_client(session).list_contacts(address_book_href)
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
 
 @app.get("/api/carddav/contact", response_model=ContactDetail)
@@ -303,7 +303,7 @@ async def contact(
     try:
         return await _carddav_client(session).get_contact(href)
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
 
 @app.post(
@@ -326,7 +326,7 @@ async def create_contact(
         )
     except (CardDavError, ValueError) as exc:
         if isinstance(exc, CardDavError):
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
@@ -345,7 +345,7 @@ async def update_contact(
         )
     except (CardDavError, ValueError) as exc:
         if isinstance(exc, CardDavError):
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
@@ -358,6 +358,6 @@ async def delete_contact(
     try:
         await _carddav_client(session, require_write=True).delete_contact(href, etag)
     except CardDavError as exc:
-        raise _carddav_failure(exc) from exc
+        raise carddav_http_exception(exc) from exc
 
     return ContactDeleteResponse(deleted=True, href=href)

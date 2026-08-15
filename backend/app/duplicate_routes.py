@@ -6,13 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from .auth import SessionRecord, SessionStore
 from .carddav import (
-    CardDavAuthenticationError,
     CardDavAuthorizationError,
     CardDavClient,
     CardDavConflict,
     CardDavError,
-    CardDavNotFound,
 )
+from .carddav_errors import carddav_http_exception
 from .config import Settings
 from .duplicate_models import (
     DuplicateMergePreviewRequest,
@@ -28,18 +27,6 @@ from .duplicates import (
 )
 from .models import MAX_RESOURCE_HREF_CHARS
 from .vcard import parse_vcard
-
-
-def _carddav_failure(exc: CardDavError) -> HTTPException:
-    if isinstance(exc, CardDavAuthenticationError):
-        return HTTPException(status_code=401, detail="CardDAV authentication failed.")
-    if isinstance(exc, CardDavAuthorizationError):
-        return HTTPException(status_code=403, detail=str(exc))
-    if isinstance(exc, CardDavConflict):
-        return HTTPException(status_code=409, detail=str(exc))
-    if isinstance(exc, CardDavNotFound):
-        return HTTPException(status_code=404, detail=str(exc))
-    return HTTPException(status_code=502, detail=str(exc))
 
 
 async def _require_contact_in_address_book(
@@ -257,7 +244,7 @@ def build_duplicate_router(settings: Settings, session_store: SessionStore) -> A
         try:
             return await scan_duplicates(carddav_client(session), address_book_href)
         except CardDavError as exc:
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
 
     @router.post(
         "/api/carddav/duplicates/preview",
@@ -270,7 +257,7 @@ def build_duplicate_router(settings: Settings, session_store: SessionStore) -> A
         try:
             return await preview_duplicate_merge(carddav_client(session), payload)
         except CardDavError as exc:
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -288,7 +275,7 @@ def build_duplicate_router(settings: Settings, session_store: SessionStore) -> A
                 payload,
             )
         except CardDavError as exc:
-            raise _carddav_failure(exc) from exc
+            raise carddav_http_exception(exc) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
