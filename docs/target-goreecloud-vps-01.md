@@ -52,6 +52,41 @@ The Calendar Caddy matcher should authorize only the established NetBird/client 
 
 Do not replace this bounded list with `172.19.0.0/16` merely to make dependency checks pass.
 
+## Private Caddy Dependency Address
+
+Live target inspection on August 15, 2026 confirmed Caddy's current address on the shared `proxy` network:
+
+```text
+172.19.0.2
+```
+
+The production Compose model therefore requires the target-specific deployment value:
+
+```text
+GOREECLOUD_CONTACTS_CADDY_IP=172.19.0.2
+```
+
+Contacts must keep `CARDDAV_BASE_URL=https://calendar.goreecloud.com` so TLS hostname validation and the documented CardDAV service identity remain intact. The production container maps only `calendar.goreecloud.com` to the approved private Caddy address using its Compose `extra_hosts` entry. This avoids routing the dependency through public DNS while preserving the Contacts source identity `172.19.0.51` seen by Caddy.
+
+The Caddy address is target state, not an application constant. Re-inspect it before a future deployment if the Caddy container or proxy-network addressing changes.
+
+## First Startup Dependency Finding — August 15, 2026
+
+The first production-shaped startup of reviewed release candidate `f7a4e3740de852932b08d4c9baa6efb20ea8e1a0` validated the container's runtime hardening but correctly failed readiness because CardDAV transport was unavailable.
+
+Observed state:
+
+```text
+/api/health/live  -> 200
+session_store     -> ok
+carddav           -> unavailable
+/api/health/ready -> 503
+```
+
+Inside the Contacts container, default Docker DNS resolved `calendar.goreecloud.com` to public addresses `207.207.210.36` and `207.207.210.50`. An unauthenticated HTTPS `PROPFIND` reached an `openresty` endpoint and returned HTTP `404`, so the application correctly treated CardDAV as unavailable.
+
+This was a dependency-routing defect in the production deployment model, not a Radicale credential failure or a reason to weaken Caddy authorization. The unready Contacts container was removed before continuing. The release candidate was then amended to require the private Caddy mapping described above and must pass CI again before redeployment.
+
 ## Backup Evidence Before First Deployment
 
 The active `goreecloud-kopia-backup.service` completed successfully on August 15, 2026 from 12:02:15 AM CDT through 12:02:31 AM CDT.
