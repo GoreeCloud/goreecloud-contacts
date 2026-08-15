@@ -16,7 +16,10 @@ services:
       CSRF_ORIGIN_CHECK_ENABLED: "true"
       SESSION_STORE_BACKEND: sqlite
       SESSION_DB_PATH: /data/sessions.sqlite3
+      SESSION_ENCRYPTION_KEYS_FILE: /run/secrets/session-encryption-keys
       DUPLICATE_MERGE_ENABLED: "false"
+    secrets:
+      - session_encryption_keys
     volumes:
       - type: bind
         source: ${GOREECLOUD_CONTACTS_DATA_PATH:-/srv/docker/appdata/goreecloud-contacts}
@@ -37,3 +40,7 @@ services:
 networks:
   proxy:
     external: true
+
+secrets:
+  session_encryption_keys:
+    file: ${GOREECLOUD_CONTACTS_SESSION_SECRET_PATH:-/srv/docker/secrets/goreecloud-contacts/session-encryption-keys}
