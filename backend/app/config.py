@@ -11,6 +11,16 @@ _ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
 AppEnvironment = Literal["development", "test", "production"]
 
 
+def fastapi_documentation_options(enabled: bool) -> dict[str, str | None]:
+    """Return explicit FastAPI documentation routes for the selected environment."""
+
+    return {
+        "docs_url": "/docs" if enabled else None,
+        "redoc_url": "/redoc" if enabled else None,
+        "openapi_url": "/openapi.json" if enabled else None,
+    }
+
+
 class Settings(BaseSettings):
     app_env: AppEnvironment = "development"
     frontend_origin: str = "http://localhost:5173"
@@ -34,7 +44,7 @@ class Settings(BaseSettings):
 
     @field_validator("app_env", mode="before")
     @classmethod
-    def normalize_app_environment(cls, value):
+    def normalize_app_environment(cls, value: object) -> object:
         if isinstance(value, str):
             return value.strip().casefold()
         return value
