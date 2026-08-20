@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">GoreeCloud Contacts</title>
+  <desc id="desc">Canonical GoreeCloud Contacts application icon.</desc>
+  <defs>
+    <linearGradient id="bg" x1="72" y1="48" x2="440" y2="464" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#8B5CF6"/><stop offset="0.52" stop-color="#6366F1"/><stop offset="1" stop-color="#2563EB"/></linearGradient>
+    <linearGradient id="glass" x1="160" y1="116" x2="354" y2="388" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.94"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.72"/></linearGradient>
+  </defs>
+  <rect x="28" y="28" width="456" height="456" rx="112" fill="url(#bg)"/>
+  <path d="M112 118c0-26.51 21.49-48 48-48h192c26.51 0 48 21.49 48 48v276c0 26.51-21.49 48-48 48H160c-26.51 0-48-21.49-48-48V118Z" fill="#FFFFFF" fill-opacity="0.14" stroke="#FFFFFF" stroke-opacity="0.34" stroke-width="8"/>
+  <rect x="132" y="96" width="248" height="320" rx="56" fill="url(#glass)"/>
+  <rect x="98" y="150" width="52" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.92"/><rect x="98" y="239" width="52" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.92"/><rect x="98" y="328" width="52" height="34" rx="17" fill="#FFFFFF" fill-opacity="0.92"/>
+  <circle cx="256" cy="210" r="58" fill="#4F46E5"/><path d="M166 354c8-58 44-92 90-92s82 34 90 92c2.2 16.1-10.4 30-26.7 30H192.7c-16.3 0-28.9-13.9-26.7-30Z" fill="#4F46E5"/>
+</svg>
