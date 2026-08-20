@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     session_encryption_keys: SecretStr = SecretStr("")
     session_encryption_keys_file: str = ""
     csrf_origin_check_enabled: bool = False
+    login_throttle_max_attempts: int = 8
+    login_throttle_window_seconds: int = 300
 
     model_config = SettingsConfigDict(
         env_file=_ROOT_ENV,
@@ -51,14 +53,19 @@ class Settings(BaseSettings):
             return value.strip().casefold()
         return value
 
+    @field_validator("login_throttle_max_attempts", "login_throttle_window_seconds")
+    @classmethod
+    def validate_positive_security_limits(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("login throttle limits must be positive integers.")
+        return value
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
 
     @property
     def api_documentation_enabled(self) -> bool:
-        # Interactive/API-schema discovery is a development and test aid, not a production
-        # application requirement. Production keeps the routes absent by default.
         return not self.is_production
 
     @property
@@ -98,10 +105,6 @@ class Settings(BaseSettings):
             )
         self.frontend_origin = frontend_origin
 
-        # Validate secret-source ambiguity and file-path shape in every environment so a
-        # deployment cannot silently choose a different key source than the administrator
-        # intended. The file is read only when the key list is actually required below or
-        # by the selected session store.
         inline_keys = self.session_encryption_keys.get_secret_value().strip()
         key_file = self.session_encryption_keys_file.strip()
         if inline_keys and key_file:
