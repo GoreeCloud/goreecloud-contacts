@@ -17,6 +17,7 @@ from .config import fastapi_documentation_options, get_settings
 from .duplicate_routes import build_duplicate_router
 from .health import carddav_transport_ready
 from .logging_privacy import configure_access_log_privacy
+from .login_throttle import LoginThrottle
 from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
@@ -43,12 +44,14 @@ session_store = create_session_store(
     database_path=settings.session_db_path,
     encryption_keys=settings.session_encryption_key_list,
 )
+login_throttle = LoginThrottle(
+    max_attempts=settings.login_throttle_max_attempts,
+    window_seconds=settings.login_throttle_window_seconds,
+)
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
-    # Reapply after server logging configuration in case the application was imported before
-    # Uvicorn configured its loggers. The installer is idempotent.
     configure_access_log_privacy()
     yield
 
@@ -166,22 +169,16 @@ def _liveness_response() -> HealthResponse:
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
-    """Compatibility liveness endpoint retained for existing development checks."""
-
     return _liveness_response()
 
 
 @app.get("/api/health/live", response_model=HealthResponse)
 async def health_live() -> HealthResponse:
-    """Process liveness only; does not claim dependency readiness."""
-
     return _liveness_response()
 
 
 @app.get("/api/health/ready", response_model=ReadinessResponse)
 async def health_ready():
-    """Dependency readiness without user credentials or contact-data disclosure."""
-
     session_ready = session_store.healthcheck()
     if settings.carddav_configured:
         carddav_ready = await carddav_transport_ready(
@@ -228,6 +225,14 @@ async def login(payload: LoginRequest, response: Response) -> AuthSessionRespons
         )
 
     username = payload.username.strip()
+    throttle = login_throttle.check(username)
+    if not throttle.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many sign-in attempts. Try again later.",
+            headers={"Retry-After": str(throttle.retry_after_seconds)},
+        )
+
     password = payload.password.get_secret_value()
     client = CardDavClient(settings, username=username, password=password)
 
@@ -241,6 +246,7 @@ async def login(payload: LoginRequest, response: Response) -> AuthSessionRespons
     except CardDavError as exc:
         raise carddav_http_exception(exc) from exc
 
+    login_throttle.reset(username)
     record = session_store.create(username=username, password=password)
     response.set_cookie(
         key=settings.session_cookie_name,
