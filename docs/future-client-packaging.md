@@ -2,7 +2,7 @@
 
 ## Status
 
-Planned future product requirement. This document does not approve implementation or production distribution yet.
+Planned future product requirement. This document does not approve Android or Debian production distribution yet. The canonical application artwork source and web icon integration are now implemented in source control.
 
 ## Required Client Packages
 
@@ -17,7 +17,17 @@ The exact Android and Linux client architecture, frameworks, signing model, perm
 
 ## Canonical Application Icon
 
-GoreeCloud Contacts must have one canonical application icon and visual identity across every supported platform and distribution surface.
+GoreeCloud Contacts has one canonical application icon and visual identity across every supported platform and distribution surface.
+
+The authoritative master artwork is:
+
+`artwork/contacts-icon.svg`
+
+The browser-consumable source derivative is:
+
+`frontend/public/contacts-icon.svg`
+
+The icon uses a Glaze UI rounded application tile, a translucent address-book surface, visible address-book tabs, and a centered person silhouette. This visual vocabulary identifies the product as Contacts without relying on text inside the icon.
 
 The same canonical Contacts artwork must drive:
 
@@ -31,9 +41,15 @@ The same canonical Contacts artwork must drive:
 
 Platform-specific icon files may be generated only when required by a platform's packaging or rendering rules. They must remain derivatives of the same canonical master artwork rather than independently designed replacements.
 
-The canonical source should be retained in source control as reusable vector/master artwork. Android adaptive layers, raster sizes, Linux SVG/PNG derivatives, favicons, and other generated assets should be produced from the canonical source through a documented asset pipeline whenever practical.
+Android adaptive layers, raster sizes, Linux SVG/PNG derivatives, favicons, and other generated assets should be produced from `artwork/contacts-icon.svg` through a documented asset pipeline whenever practical. Generated artifacts must not become independent design authorities.
 
-Client-specific alternate logos, unrelated artwork, unofficial colors, or visual identities are not permitted. GoreeCloud Contacts must remain immediately recognizable as the same application on the web, Android, and Linux.
+Client-specific alternate logos, unrelated artwork, unofficial colors, or visual identities are not permitted. GoreeCloud Contacts must remain immediately recognizable as the same application on the web, Android, Linux, GitHub, documentation, and future platforms.
+
+## Web Integration
+
+The current browser client references `/contacts-icon.svg` for its SVG favicon and application touch-icon metadata. This gives the web application the same source identity that future packaged clients must inherit.
+
+Future raster or platform-native derivatives should be added only when the target platform requires them and should be validated visually against the canonical master before release.
 
 ## Design and Security Requirements
 

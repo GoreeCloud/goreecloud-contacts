@@ -1,11 +1,27 @@
 import { readFile } from 'node:fs/promises'
 
-const [mainSource, glazeSource, accessibilitySource, indexSource] = await Promise.all([
+const [
+  mainSource,
+  glazeSource,
+  accessibilitySource,
+  indexSource,
+  canonicalIconSource,
+  webIconSource,
+  manifestSource,
+] = await Promise.all([
   readFile(new URL('../src/main.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-accessibility.css', import.meta.url), 'utf8'),
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
+  readFile(new URL('../../artwork/contacts-icon.svg', import.meta.url), 'utf8'),
+  readFile(new URL('../public/contacts-icon.svg', import.meta.url), 'utf8'),
+  readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'),
 ])
+
+const manifest = JSON.parse(manifestSource)
+const manifestIcon = Array.isArray(manifest.icons)
+  ? manifest.icons.find((icon) => icon?.src === '/contacts-icon.svg')
+  : undefined
 
 const requirements = [
   {
@@ -81,6 +97,41 @@ const requirements = [
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(`${glazeSource}\n${accessibilitySource}`),
     message: 'The Glaze UI layers must not introduce third-party CSS/font/image dependencies.',
+  },
+  {
+    ok: canonicalIconSource.includes('<title id="title">GoreeCloud Contacts</title>') &&
+      canonicalIconSource.includes('viewBox="0 0 512 512"') &&
+      canonicalIconSource.includes('address-book tile with a person silhouette'),
+    message: 'The canonical Contacts SVG must retain its product identity metadata and 512-square vector contract.',
+  },
+  {
+    ok: canonicalIconSource === webIconSource,
+    message: 'The browser Contacts icon must remain byte-for-byte identical to artwork/contacts-icon.svg.',
+  },
+  {
+    ok: indexSource.includes('rel="icon" type="image/svg+xml" href="/contacts-icon.svg"') &&
+      indexSource.includes('rel="apple-touch-icon" href="/contacts-icon.svg"'),
+    message: 'The browser document must continue using the canonical Contacts icon for application identity metadata.',
+  },
+  {
+    ok: indexSource.includes('rel="manifest" href="/manifest.webmanifest"'),
+    message: 'The browser document must retain the GoreeCloud Contacts web app manifest reference.',
+  },
+  {
+    ok: manifest.name === 'GoreeCloud Contacts' &&
+      manifest.short_name === 'Contacts' &&
+      manifest.start_url === '/' &&
+      manifest.scope === '/' &&
+      manifest.display === 'standalone',
+    message: 'The Contacts web app manifest must retain its canonical product identity and same-origin launch contract.',
+  },
+  {
+    ok: manifestIcon?.type === 'image/svg+xml' &&
+      manifestIcon?.sizes === 'any' &&
+      typeof manifestIcon?.purpose === 'string' &&
+      manifestIcon.purpose.includes('any') &&
+      manifestIcon.purpose.includes('maskable'),
+    message: 'The Contacts web app manifest must derive install icon metadata from /contacts-icon.svg.',
   },
 ]
 
