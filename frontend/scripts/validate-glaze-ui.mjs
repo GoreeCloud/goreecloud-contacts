@@ -7,6 +7,7 @@ const [
   indexSource,
   canonicalIconSource,
   webIconSource,
+  manifestSource,
 ] = await Promise.all([
   readFile(new URL('../src/main.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze.css', import.meta.url), 'utf8'),
@@ -14,7 +15,13 @@ const [
   readFile(new URL('../index.html', import.meta.url), 'utf8'),
   readFile(new URL('../../artwork/contacts-icon.svg', import.meta.url), 'utf8'),
   readFile(new URL('../public/contacts-icon.svg', import.meta.url), 'utf8'),
+  readFile(new URL('../public/manifest.webmanifest', import.meta.url), 'utf8'),
 ])
+
+const manifest = JSON.parse(manifestSource)
+const manifestIcon = Array.isArray(manifest.icons)
+  ? manifest.icons.find((icon) => icon?.src === '/contacts-icon.svg')
+  : undefined
 
 const requirements = [
   {
@@ -105,6 +112,26 @@ const requirements = [
     ok: indexSource.includes('rel="icon" type="image/svg+xml" href="/contacts-icon.svg"') &&
       indexSource.includes('rel="apple-touch-icon" href="/contacts-icon.svg"'),
     message: 'The browser document must continue using the canonical Contacts icon for application identity metadata.',
+  },
+  {
+    ok: indexSource.includes('rel="manifest" href="/manifest.webmanifest"'),
+    message: 'The browser document must retain the GoreeCloud Contacts web app manifest reference.',
+  },
+  {
+    ok: manifest.name === 'GoreeCloud Contacts' &&
+      manifest.short_name === 'Contacts' &&
+      manifest.start_url === '/' &&
+      manifest.scope === '/' &&
+      manifest.display === 'standalone',
+    message: 'The Contacts web app manifest must retain its canonical product identity and same-origin launch contract.',
+  },
+  {
+    ok: manifestIcon?.type === 'image/svg+xml' &&
+      manifestIcon?.sizes === 'any' &&
+      typeof manifestIcon?.purpose === 'string' &&
+      manifestIcon.purpose.includes('any') &&
+      manifestIcon.purpose.includes('maskable'),
+    message: 'The Contacts web app manifest must derive install icon metadata from /contacts-icon.svg.',
   },
 ]
 
