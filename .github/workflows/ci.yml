@@ -193,9 +193,27 @@ jobs:
           done
 
           grep -F '"environment":"production"' /tmp/contacts-live.json
-          curl --fail --silent --show-error http://127.0.0.1:18080/ >/tmp/contacts-index.html
+
+          curl --fail --silent --show-error \
+            --dump-header /tmp/contacts-index.headers \
+            http://127.0.0.1:18080/ >/tmp/contacts-index.html
           grep -F '<title>GoreeCloud Contacts</title>' /tmp/contacts-index.html
           grep -F 'rel="manifest" href="/manifest.webmanifest"' /tmp/contacts-index.html
+
+          curl --fail --silent --show-error \
+            --dump-header /tmp/contacts-api.headers \
+            http://127.0.0.1:18080/api/health/live >/dev/null
+
+          for headers in /tmp/contacts-index.headers /tmp/contacts-api.headers; do
+            grep -Fi "content-security-policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; worker-src 'none'" "$headers"
+            grep -Fi 'x-frame-options: DENY' "$headers"
+            grep -Fi 'cross-origin-opener-policy: same-origin' "$headers"
+            grep -Fi 'cross-origin-resource-policy: same-origin' "$headers"
+            grep -Fi 'referrer-policy: no-referrer' "$headers"
+            grep -Fi 'x-content-type-options: nosniff' "$headers"
+            grep -Fi 'permissions-policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()' "$headers"
+          done
+
           curl --fail --silent --show-error http://127.0.0.1:18080/manifest.webmanifest >/tmp/contacts-manifest.webmanifest
           grep -F '"name": "GoreeCloud Contacts"' /tmp/contacts-manifest.webmanifest
           grep -F '"src": "/contacts-icon.svg"' /tmp/contacts-manifest.webmanifest
