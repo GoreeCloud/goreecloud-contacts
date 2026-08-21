@@ -6,27 +6,29 @@ I use this document to define the security requirements and implemented security
 
 ## Credential Handling
 
-I will not store active passwords, CardDAV credentials, private keys, tokens, recovery information, or session values in source control.
+I will not store active passwords, CardDAV credentials, private keys, tokens, recovery information, or session values in source control or ordinary documentation.
 
-GoreeCloud Contacts no longer uses one application-wide CardDAV username and password from `.env`. Each user enters an approved Radicale/CardDAV username and password at sign-in.
+GoreeCloud Contacts does not use one application-wide CardDAV username and password for normal user access. Each user enters an approved Radicale/CardDAV username and password at sign-in.
 
-The backend validates those credentials directly against Radicale. The plaintext CardDAV password is retained only in backend process memory for the lifetime of the authenticated session because the backend must present the user's credentials to Radicale for later CardDAV requests. It is not returned to the browser, written to the session cookie, persisted to disk, or intentionally written to logs.
+The backend validates those credentials directly against Radicale. CardDAV credentials remain backend-only and are protected as part of the encrypted server-side session record. They are not returned to the browser, written into the browser session cookie, or intentionally written to logs.
 
 ## Authentication
 
-`POST /api/auth/login` validates the supplied user credentials by performing CardDAV discovery against the configured Radicale service. A successful login creates a cryptographically random opaque session token.
+`POST /api/auth/login` validates supplied credentials by performing CardDAV discovery against the configured Radicale service. A successful login creates a cryptographically random opaque session token.
 
 The browser receives only that token in a cookie configured as:
 
-- `HttpOnly`
-- `SameSite=Strict`
-- path `/`
-- an explicit maximum age derived from `SESSION_TTL_SECONDS`
-- `Secure` when `SESSION_COOKIE_SECURE=true`
+- `HttpOnly`;
+- `SameSite=Strict`;
+- path `/`;
+- an explicit maximum age derived from `SESSION_TTL_SECONDS`;
+- `Secure` when `SESSION_COOKIE_SECURE=true`.
 
-`GET /api/auth/session` reports only the authenticated state, username, and session expiration time. `POST /api/auth/logout` invalidates the backend session and removes the cookie.
+`GET /api/auth/session` reports only authenticated state, username, and session expiration. `POST /api/auth/logout` invalidates the backend session and removes the cookie.
 
 Expired, missing, or unknown session tokens cannot access protected CardDAV routes.
+
+Authentication abuse is bounded by configurable sign-in throttling keyed only by normalized username. The throttle does not retain passwords, session tokens, request bodies, contact data, or client addresses. Exhausted attempt budgets return HTTP 429 with `Retry-After`, and a successful login resets the identity window.
 
 ## Authorization and Multi-User Isolation
 
@@ -34,59 +36,91 @@ Authentication does not grant unrestricted CardDAV access.
 
 For every signed-in session, GoreeCloud Contacts builds a CardDAV client using only that session user's credentials. Address books are discovered from that user's CardDAV principal and `addressbook-home-set`.
 
-The backend then independently enforces application-level scope:
+The backend independently enforces application-level scope:
 
-- a requested address-book URL must exactly match one of the address books discovered for the authenticated session;
-- a requested contact resource must be a `.vcf` path beneath one of those discovered address books;
+- a requested address-book URL must exactly match an address book discovered for the authenticated session;
+- a requested contact resource must be a `.vcf` path beneath an authorized address book;
 - CardDAV resource URLs must remain on the configured CardDAV origin;
 - percent-decoded and normalized paths are checked before authorization decisions;
-- requests outside the authenticated session's scope fail with authorization errors instead of being forwarded as arbitrary same-origin CardDAV requests.
+- requests outside the authenticated session's scope fail instead of being forwarded as arbitrary CardDAV requests.
 
 Radicale access controls remain an additional authorization layer rather than the only isolation control.
 
 ## Conditional Write Protection
 
-The Milestone 2 write-integrity rules remain active.
+The existing write-integrity rules remain active.
 
 - Create uses `If-None-Match: *`.
 - Update and delete require the current ETag through `If-Match`.
 - CardDAV HTTP 412 precondition failures become API HTTP 409 conflicts.
-- `CARDDAV_WRITE_ENABLED` remains disabled by default.
+- `CARDDAV_WRITE_ENABLED` remains an explicit safety gate and defaults to disabled.
+- Duplicate merge has its own explicit mutation gate.
 
-Authentication does not bypass the write safety gate.
+Authentication does not bypass mutation safety gates.
 
-## Session Storage Limitation
+## Session Storage
 
-Milestone 3 uses process-local in-memory session storage. This is intentional for the current development foundation.
+The production-shaped runtime supports encrypted shared SQLite-backed sessions so multiple configured backend workers can share application sessions. Session encryption key material is supplied separately from ordinary environment configuration and is not embedded in the image.
 
-Consequences:
+The production container uses a dedicated writable data location for session state while the remainder of the container filesystem is read-only. CI verifies non-root runtime identity, secret-file permissions, dependency consistency, hardened container startup, and production-shaped session configuration.
 
-- a backend restart logs out all users;
-- sessions are not shared between multiple backend processes or replicas;
-- the current session store is not yet suitable for a horizontally scaled production deployment.
-
-Before production deployment, I must either confirm that a single-process session model is acceptable or replace it with an approved protected shared session store while preserving the rule that CardDAV passwords are never placed in browser-readable storage.
+Actual target-environment backup, restore, key rotation, rollback, worker behavior, and recovery validation remain production-approval gates.
 
 ## Cross-Site Request Protection
 
-The application uses a narrowly configured frontend origin, credentialed CORS, and `SameSite=Strict` session cookies. Production deployment must use HTTPS and set `SESSION_COOKIE_SECURE=true`.
+The application uses a narrowly configured frontend origin, credentialed CORS, `SameSite=Strict` session cookies, and optional strict Origin/Referer enforcement for unsafe requests through `CSRF_ORIGIN_CHECK_ENABLED`.
 
-A production security review must determine whether an additional explicit CSRF token or Origin/Referer enforcement is required for the final deployment model.
+Production deployment requires HTTPS, `SESSION_COOKIE_SECURE=true`, and target-environment validation of the Origin/Referer policy through the final private-publication path.
+
+## API Privacy Controls
+
+API responses receive privacy-oriented headers including `Cache-Control: no-store`, `Pragma: no-cache`, `Expires: 0`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`.
+
+Production access logging is configured to minimize query-string exposure so CardDAV resource identifiers and other request parameters are not routinely copied into access logs.
+
+## Production Browser Security Policy
+
+The production application entry point applies a same-origin browser-security policy to API responses, HTML, the web app manifest, and static assets. The local development entry point does not apply this production-only policy.
+
+The production policy includes:
+
+- a strict `Content-Security-Policy` limited to same-origin scripts, styles, fonts, connections, and manifest resources;
+- framing blocked through CSP `frame-ancestors 'none'` and `X-Frame-Options: DENY`;
+- objects and workers blocked;
+- `Cross-Origin-Opener-Policy: same-origin`;
+- `Cross-Origin-Resource-Policy: same-origin`;
+- `Referrer-Policy: no-referrer`;
+- `X-Content-Type-Options: nosniff`;
+- a restrictive `Permissions-Policy` disabling camera, geolocation, microphone, payment, and USB access.
+
+The CSP intentionally does not permit `unsafe-inline`, `unsafe-eval`, or generic external `http:`/`https:` source schemes. CI unit-tests the policy and the production-image smoke test fetches real HTML and API responses from the hardened container and requires the expected headers to be present.
+
+The runtime smoke test verifies each required CSP directive individually rather than depending on directive ordering. It also explicitly rejects `unsafe-inline` and `unsafe-eval`. Exact head `f95aec7c52822e2d79409e97c579cd9447359ca7` passed Continuous Integration run #137 / workflow run `32450163475`, including production-image construction, hardened-container startup, and the runtime browser-security header checks.
+
+HTTP Strict Transport Security is intentionally not emitted by application middleware. HTTPS termination and HSTS remain responsibilities of the validated Caddy/private-publication layer so local HTTP development and internal health probes are not unintentionally upgraded by application code.
 
 ## Network Exposure
 
-The production application is intended to use the approved GoreeCloud private-service publication model. Backend application ports must not be exposed directly to the public Internet.
+The production application is intended to use the approved GoreeCloud private-service publication model. Backend application ports must not be directly exposed outside the approved reverse-proxy/network boundary.
+
+## Dependency and Runtime Security
+
+CI performs frontend dependency auditing, backend project and locked-runtime dependency auditing, backend tests across supported Python versions, frontend validation/lint/build, production Compose validation, production image construction, package consistency checks, and hardened-container smoke testing.
+
+The production container runs as a dedicated non-root UID/GID, drops Linux capabilities, enables `no-new-privileges`, limits PIDs, uses a read-only root filesystem in the production-shaped test, and keeps writable state in explicitly scoped tmpfs/data locations.
+
+Source and CI validation do not replace target-environment validation.
 
 ## Logging
 
-Logs must minimize personal contact data. Routine logs should not include full vCards, contact notes, addresses, phone numbers, email addresses, credentials, or session values unless a narrowly scoped troubleshooting need requires temporary protected diagnostic output.
+Logs must minimize personal contact data. Routine logs should not include full vCards, contact notes, addresses, phone numbers, email addresses, credentials, session values, or sensitive query strings unless a narrowly scoped troubleshooting need requires temporary protected diagnostic output.
 
 ## Development and Testing
 
-Automated tests and local development must use synthetic contact data and non-production credentials. Production contact collections must not be used as a convenient development dataset.
+Automated tests and local development use synthetic contact data and non-production credentials. Production-family contact collections must not be used as a convenient development dataset.
 
 Authentication tests must verify that passwords and opaque tokens are not exposed through normal API responses or object representations. Authorization tests must include attempts to select another user's address book or contact path.
 
 ## Security Review Gate
 
-Production deployment requires review of authentication, authorization, session protection, CSRF protections, dependency security, CardDAV conflict behavior, logging, container permissions, network exposure, backup, restoration, rollback, and multi-user validation with isolated non-production accounts.
+Production deployment still requires target-environment review and evidence for authentication, authorization, session protection, CSRF enforcement, Caddy/HTTPS/HSTS behavior, logging, request limits, container permissions, network exposure, monitoring, backup, restoration, key rotation, rollback, DAVx5 coexistence, browser/mobile acceptance, and controlled production-family onboarding.
