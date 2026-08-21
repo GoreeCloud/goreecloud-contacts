@@ -205,7 +205,25 @@ jobs:
             http://127.0.0.1:18080/api/health/live >/dev/null
 
           for headers in /tmp/contacts-index.headers /tmp/contacts-api.headers; do
-            grep -Fi "content-security-policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; worker-src 'none'" "$headers"
+            CSP="$(tr -d '\r' < "$headers" | grep -i '^content-security-policy:')"
+            test -n "$CSP"
+            for directive in \
+              "default-src 'self'" \
+              "base-uri 'self'" \
+              "connect-src 'self'" \
+              "font-src 'self'" \
+              "form-action 'self'" \
+              "frame-ancestors 'none'" \
+              "img-src 'self' data:" \
+              "manifest-src 'self'" \
+              "object-src 'none'" \
+              "script-src 'self'" \
+              "style-src 'self'" \
+              "worker-src 'none'"; do
+              printf '%s\n' "$CSP" | grep -F "$directive"
+            done
+            ! printf '%s\n' "$CSP" | grep -Fq "'unsafe-inline'"
+            ! printf '%s\n' "$CSP" | grep -Fq "'unsafe-eval'"
             grep -Fi 'x-frame-options: DENY' "$headers"
             grep -Fi 'cross-origin-opener-policy: same-origin' "$headers"
             grep -Fi 'cross-origin-resource-policy: same-origin' "$headers"
