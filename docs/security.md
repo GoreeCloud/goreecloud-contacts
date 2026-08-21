@@ -95,6 +95,8 @@ The production policy includes:
 
 The CSP intentionally does not permit `unsafe-inline`, `unsafe-eval`, or generic external `http:`/`https:` source schemes. CI unit-tests the policy and the production-image smoke test fetches real HTML and API responses from the hardened container and requires the expected headers to be present.
 
+The runtime smoke test verifies each required CSP directive individually rather than depending on directive ordering. It also explicitly rejects `unsafe-inline` and `unsafe-eval`. Exact head `f95aec7c52822e2d79409e97c579cd9447359ca7` passed Continuous Integration run #137 / workflow run `32450163475`, including production-image construction, hardened-container startup, and the runtime browser-security header checks.
+
 HTTP Strict Transport Security is intentionally not emitted by application middleware. HTTPS termination and HSTS remain responsibilities of the validated Caddy/private-publication layer so local HTTP development and internal health probes are not unintentionally upgraded by application code.
 
 ## Network Exposure
