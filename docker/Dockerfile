@@ -7,6 +7,7 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
+COPY artwork/ /build/artwork/
 COPY frontend/ ./
 RUN npm run validate:ui && npm run build
 
