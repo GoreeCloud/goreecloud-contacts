@@ -40,6 +40,13 @@ const requirements = [
     message: 'Compact Mobile must transform the desktop contact table into labeled contact cards.',
   },
   {
+    ok: refinementSource.includes('.empty-state {\n  grid-column: 1 / -1;') &&
+      refinementSource.includes('.notice code {\n  overflow-wrap: anywhere;') &&
+      refinementSource.includes('.empty-state {\n    padding: 28px 16px;') &&
+      refinementSource.includes('border: 1px dashed var(--glaze-border-strong);'),
+    message: 'Loading, empty, and notice states must span the active contact canvas and remain Compact-readable.',
+  },
+  {
     ok: refinementSource.includes('.login-card {') &&
       refinementSource.includes('.login-card input {') &&
       refinementSource.includes('.login-actions .primary-button {') &&
@@ -119,11 +126,12 @@ const requirements = [
       refinementSource.includes('@media (forced-colors: active) {') &&
       refinementSource.includes('.login-card,') &&
       refinementSource.includes('.account-controls,') &&
-      refinementSource.includes('.backend-status {') &&
+      refinementSource.includes('.backend-status,') &&
+      refinementSource.includes('.empty-state {') &&
       refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)') &&
       vcfSource.includes('@media (forced-colors: active)') &&
       duplicateSource.includes('@media (forced-colors: active)'),
-    message: 'Form-factor, authentication, detail/editor, and workflow surfaces must retain transparency and forced-colors resilience.',
+    message: 'Form-factor, feedback, authentication, detail/editor, and workflow surfaces must retain transparency and forced-colors resilience.',
   },
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(
