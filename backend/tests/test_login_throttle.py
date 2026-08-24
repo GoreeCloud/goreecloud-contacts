@@ -1,6 +1,22 @@
+import multiprocessing
 import sqlite3
 
 from app.login_throttle import LoginThrottle, SqliteLoginThrottle, create_login_throttle
+
+
+def _sqlite_throttle_process_check(
+    database_path: str,
+    key: str,
+    now: float,
+    queue,
+) -> None:
+    throttle = SqliteLoginThrottle(
+        max_attempts=2,
+        window_seconds=60,
+        database_path=database_path,
+    )
+    decision = throttle.check(key, now=now)
+    queue.put((decision.allowed, decision.retry_after_seconds))
 
 
 def test_login_throttle_blocks_after_bounded_attempts() -> None:
@@ -53,6 +69,32 @@ def test_sqlite_login_throttle_is_shared_across_instances(tmp_path) -> None:
     blocked = first_worker.check("ALICE", now=102)
     assert blocked.allowed is False
     assert blocked.retry_after_seconds == 58
+
+
+def test_sqlite_login_throttle_is_shared_across_processes(tmp_path) -> None:
+    database_path = tmp_path / "sessions.sqlite3"
+    SqliteLoginThrottle(
+        max_attempts=2,
+        window_seconds=60,
+        database_path=str(database_path),
+    )
+
+    context = multiprocessing.get_context("spawn")
+    results = []
+    for key, now in (("Alice", 100.0), (" alice ", 101.0), ("ALICE", 102.0)):
+        queue = context.Queue()
+        process = context.Process(
+            target=_sqlite_throttle_process_check,
+            args=(str(database_path), key, now, queue),
+        )
+        process.start()
+        process.join(timeout=10)
+
+        assert process.exitcode == 0
+        results.append(queue.get(timeout=2))
+        queue.close()
+
+    assert results == [(True, 0), (True, 0), (False, 58)]
 
 
 def test_sqlite_login_throttle_reset_is_shared(tmp_path) -> None:
