@@ -40,15 +40,29 @@ const requirements = [
     message: 'Compact Mobile must transform the desktop contact table into labeled contact cards.',
   },
   {
+    ok: refinementSource.includes('.detail-card,') &&
+      refinementSource.includes('.editor-card,') &&
+      refinementSource.includes('background: var(--glaze-surface);') &&
+      refinementSource.includes('border-color: var(--glaze-border);'),
+    message: 'Contact detail and editor surfaces must use the current Glaze material token system.',
+  },
+  {
+    ok: refinementSource.includes('.detail-actions {') &&
+      refinementSource.includes('.editor-actions > div {') &&
+      refinementSource.includes('min-height: 46px;') &&
+      refinementSource.includes('.editor-actions .danger-button'),
+    message: 'Compact contact detail and editor actions must remain touch-sized and reachability-oriented.',
+  },
+  {
     ok: refinementSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
       refinementSource.includes('grid-template-columns: 192px minmax(0, 1fr);') &&
-      refinementSource.includes('grid-template-columns: 1fr;'),
-    message: 'Narrow Tablet must retain a touch navigation pane without forcing cramped two-up contact cards.',
+      refinementSource.includes('.editor-grid,\n  .detail-grid,\n  .name-grid {\n    grid-template-columns: 1fr;'),
+    message: 'Narrow Tablet must retain a touch navigation pane while keeping detail/editor forms single-column.',
   },
   {
     ok: refinementSource.includes('@media (min-width: 840px) and (max-width: 1023px)') &&
-      refinementSource.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'),
-    message: 'Roomier Tablet must use an intentionally expanded two-up contact canvas.',
+      refinementSource.includes('.detail-grid,\n  .editor-grid {\n    grid-template-columns: repeat(2, minmax(0, 1fr));'),
+    message: 'Roomier Tablet must intentionally expand contact detail and editor forms to two columns.',
   },
   {
     ok: formFactorSource.includes('@media (min-width: 1024px) and (max-width: 1439px)') &&
@@ -81,14 +95,16 @@ const requirements = [
   },
   {
     ok: formFactorSource.includes('@media (prefers-reduced-transparency: reduce)') &&
+      refinementSource.includes('@media (prefers-reduced-transparency: reduce) {') &&
       refinementSource.includes('@media (prefers-reduced-transparency: reduce) and (max-width: 719px)') &&
       vcfSource.includes('@media (prefers-reduced-transparency: reduce)') &&
       duplicateSource.includes('@media (prefers-reduced-transparency: reduce)') &&
       formFactorSource.includes('@media (forced-colors: active)') &&
+      refinementSource.includes('@media (forced-colors: active) {') &&
       refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)') &&
       vcfSource.includes('@media (forced-colors: active)') &&
       duplicateSource.includes('@media (forced-colors: active)'),
-    message: 'Form-factor and workflow surfaces must retain transparency and forced-colors resilience.',
+    message: 'Form-factor, detail/editor, and workflow surfaces must retain transparency and forced-colors resilience.',
   },
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(
