@@ -2,12 +2,14 @@ import { readFile } from 'node:fs/promises'
 
 const [
   mainSource,
+  accessibilitySource,
   formFactorSource,
   refinementSource,
   vcfSource,
   duplicateSource,
 ] = await Promise.all([
   readFile(new URL('../src/main.tsx', import.meta.url), 'utf8'),
+  readFile(new URL('../src/glaze-accessibility.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factors.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factor-refinements.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/vcf-tools.css', import.meta.url), 'utf8'),
@@ -18,9 +20,38 @@ const featureToolSource = `${vcfSource}\n${duplicateSource}`
 
 const requirements = [
   {
-    ok: mainSource.includes("import './glaze-form-factors.css'") &&
+    ok: mainSource.includes("import './glaze-accessibility.css'") &&
+      mainSource.includes("import './glaze-form-factors.css'") &&
       mainSource.includes("import './glaze-form-factor-refinements.css'"),
-    message: 'The Contacts client must load both Glaze UI 1.4 form-factor layers.',
+    message: 'The Contacts client must load the Glaze accessibility and both 1.4 form-factor layers.',
+  },
+  {
+    ok: mainSource.includes('className="skip-link"') &&
+      mainSource.includes('href="#contacts"') &&
+      accessibilitySource.includes('.skip-link:focus-visible'),
+    message: 'Keyboard users must retain a visible skip path to the Contacts workspace.',
+  },
+  {
+    ok: accessibilitySource.includes('.contact-row:not(.table-heading):focus-within') &&
+      accessibilitySource.includes('.editor-section:focus-within') &&
+      accessibilitySource.includes('.address-editor:focus-within') &&
+      accessibilitySource.includes('.detail-card:focus-within') &&
+      accessibilitySource.includes('.login-card:focus-within') &&
+      accessibilitySource.includes('.vcf-tools:focus-within') &&
+      accessibilitySource.includes('.duplicate-tools:focus-within'),
+    message: 'Dense Contacts workflows must preserve visible group-level keyboard focus orientation.',
+  },
+  {
+    ok: accessibilitySource.includes('scroll-margin-top: 104px;') &&
+      accessibilitySource.includes('scroll-margin-bottom: calc(164px + env(safe-area-inset-bottom));'),
+    message: 'Focused workflow groups must remain clear of sticky Desktop chrome and Compact lower navigation.',
+  },
+  {
+    ok: accessibilitySource.includes('@media (forced-colors: active)') &&
+      accessibilitySource.includes('border: 2px solid Highlight;') &&
+      accessibilitySource.includes('@media (prefers-reduced-motion: reduce)') &&
+      accessibilitySource.includes('transition: none;'),
+    message: 'Keyboard focus-group treatment must remain visible in forced colors and calm under reduced motion.',
   },
   {
     ok: formFactorSource.includes('Glaze UI 1.4.0 current-Stable'),
@@ -135,9 +166,9 @@ const requirements = [
   },
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(
-      `${formFactorSource}\n${refinementSource}\n${featureToolSource}`,
+      `${accessibilitySource}\n${formFactorSource}\n${refinementSource}\n${featureToolSource}`,
     ),
-    message: 'The form-factor and workflow layers must not introduce third-party presentation dependencies.',
+    message: 'The accessibility, form-factor, and workflow layers must not introduce third-party presentation dependencies.',
   },
 ]
 
