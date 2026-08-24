@@ -19,6 +19,54 @@
   transform: translateY(0);
 }
 
+/* Keep keyboard focus context visible while moving through dense task groups. */
+.contact-row:not(.table-heading),
+.editor-section,
+.address-editor,
+.detail-card,
+.login-card,
+.vcf-tools,
+.duplicate-tools {
+  scroll-margin-top: 104px;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.contact-row:not(.table-heading):focus-within,
+.editor-section:focus-within,
+.address-editor:focus-within {
+  border-color: color-mix(in srgb, var(--glaze-focus) 48%, var(--glaze-border));
+  background: color-mix(in srgb, var(--glaze-accent-soft) 52%, var(--glaze-surface-solid));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--glaze-focus) 20%, transparent),
+    var(--glaze-shadow-sm);
+}
+
+.detail-card:focus-within,
+.login-card:focus-within,
+.vcf-tools:focus-within,
+.duplicate-tools:focus-within {
+  border-color: color-mix(in srgb, var(--glaze-focus) 42%, var(--glaze-border));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--glaze-focus) 16%, transparent),
+    var(--glaze-shadow-sm);
+}
+
+@media (max-width: 719px) {
+  .contact-row:not(.table-heading),
+  .editor-section,
+  .address-editor,
+  .detail-card,
+  .login-card,
+  .vcf-tools,
+  .duplicate-tools {
+    scroll-margin-top: 20px;
+    scroll-margin-bottom: calc(164px + env(safe-area-inset-bottom));
+  }
+}
+
 @media (prefers-contrast: more) {
   .skip-link {
     border-width: 2px;
@@ -30,6 +78,16 @@
   textarea:focus-visible,
   select:focus-visible {
     outline-width: 3px;
+  }
+
+  .contact-row:not(.table-heading):focus-within,
+  .editor-section:focus-within,
+  .address-editor:focus-within,
+  .detail-card:focus-within,
+  .login-card:focus-within,
+  .vcf-tools:focus-within,
+  .duplicate-tools:focus-within {
+    border-width: 2px;
   }
 }
 
@@ -70,6 +128,18 @@
     forced-color-adjust: auto;
   }
 
+  .contact-row:not(.table-heading):focus-within,
+  .editor-section:focus-within,
+  .address-editor:focus-within,
+  .detail-card:focus-within,
+  .login-card:focus-within,
+  .vcf-tools:focus-within,
+  .duplicate-tools:focus-within {
+    border: 2px solid Highlight;
+    background: Canvas;
+    box-shadow: none;
+  }
+
   .status-dot {
     border: 1px solid CanvasText;
     background: GrayText;
@@ -82,7 +152,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skip-link {
+  .skip-link,
+  .contact-row:not(.table-heading),
+  .editor-section,
+  .address-editor,
+  .detail-card,
+  .login-card,
+  .vcf-tools,
+  .duplicate-tools {
     transition: none;
   }
 }
