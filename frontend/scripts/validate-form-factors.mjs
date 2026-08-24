@@ -1,10 +1,20 @@
 import { readFile } from 'node:fs/promises'
 
-const [mainSource, formFactorSource, refinementSource] = await Promise.all([
+const [
+  mainSource,
+  formFactorSource,
+  refinementSource,
+  vcfSource,
+  duplicateSource,
+] = await Promise.all([
   readFile(new URL('../src/main.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factors.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factor-refinements.css', import.meta.url), 'utf8'),
+  readFile(new URL('../src/vcf-tools.css', import.meta.url), 'utf8'),
+  readFile(new URL('../src/duplicate-tools.css', import.meta.url), 'utf8'),
 ])
+
+const featureToolSource = `${vcfSource}\n${duplicateSource}`
 
 const requirements = [
   {
@@ -52,15 +62,39 @@ const requirements = [
     message: 'Wide Desktop must expand the workspace without unbounded content stretching.',
   },
   {
-    ok: formFactorSource.includes('@media (prefers-reduced-transparency: reduce)') &&
-      refinementSource.includes('@media (prefers-reduced-transparency: reduce) and (max-width: 719px)') &&
-      formFactorSource.includes('@media (forced-colors: active)') &&
-      refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)'),
-    message: 'Form-factor layouts must retain transparency and forced-colors resilience.',
+    ok: vcfSource.includes('@media (max-width: 719px)') &&
+      vcfSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
+      vcfSource.includes('var(--glaze-surface)') &&
+      vcfSource.includes('var(--glaze-border)'),
+    message: 'VCF tools must follow Glaze tokens and the Compact/Narrow-Tablet composition contract.',
   },
   {
-    ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(`${formFactorSource}\n${refinementSource}`),
-    message: 'The form-factor layers must not introduce third-party presentation dependencies.',
+    ok: duplicateSource.includes('@media (max-width: 719px)') &&
+      duplicateSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
+      duplicateSource.includes('var(--glaze-surface)') &&
+      duplicateSource.includes('var(--glaze-border)'),
+    message: 'Duplicate review must follow Glaze tokens and the Compact/Narrow-Tablet composition contract.',
+  },
+  {
+    ok: !/#(?:fff(?:fff)?|f9fafb|e5e7eb|6b7280)\b/i.test(featureToolSource),
+    message: 'VCF and duplicate-review presentation must not regress to the legacy hard-coded light palette.',
+  },
+  {
+    ok: formFactorSource.includes('@media (prefers-reduced-transparency: reduce)') &&
+      refinementSource.includes('@media (prefers-reduced-transparency: reduce) and (max-width: 719px)') &&
+      vcfSource.includes('@media (prefers-reduced-transparency: reduce)') &&
+      duplicateSource.includes('@media (prefers-reduced-transparency: reduce)') &&
+      formFactorSource.includes('@media (forced-colors: active)') &&
+      refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)') &&
+      vcfSource.includes('@media (forced-colors: active)') &&
+      duplicateSource.includes('@media (forced-colors: active)'),
+    message: 'Form-factor and workflow surfaces must retain transparency and forced-colors resilience.',
+  },
+  {
+    ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(
+      `${formFactorSource}\n${refinementSource}\n${featureToolSource}`,
+    ),
+    message: 'The form-factor and workflow layers must not introduce third-party presentation dependencies.',
   },
 ]
 
