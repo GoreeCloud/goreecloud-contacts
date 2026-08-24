@@ -2,7 +2,7 @@
  * Loaded after glaze-form-factors.css to tighten reachability and narrow-window behavior.
  */
 
-/* Bring legacy Milestone 4 detail/editor surfaces under the current Glaze material system. */
+/* Bring legacy Milestone 4 detail/editor/auth surfaces under the current Glaze material system. */
 .detail-card,
 .editor-card,
 .login-card {
@@ -24,6 +24,16 @@
   border-color: var(--glaze-border-strong);
   background: var(--glaze-surface-strong);
   color: var(--glaze-text);
+}
+
+.account-controls {
+  border-color: var(--glaze-border);
+  color: var(--glaze-muted);
+}
+
+.backend-status {
+  border-color: var(--glaze-border);
+  background: var(--glaze-surface-muted);
 }
 
 .detail-value strong,
@@ -66,7 +76,8 @@
 
 .detail-actions .text-button,
 .editor-heading .text-button,
-.address-editor-heading .text-button {
+.address-editor-heading .text-button,
+.account-controls .text-button {
   color: var(--glaze-muted);
 }
 
@@ -74,6 +85,51 @@
 @media (max-width: 719px) {
   body {
     padding-bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .account-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    width: 100%;
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 14px;
+    background: var(--glaze-surface-muted);
+  }
+
+  .account-controls > span {
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-controls .text-button {
+    min-height: 42px;
+    padding-inline: 12px;
+  }
+
+  .backend-status {
+    justify-self: stretch;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 14px;
   }
 
   .workspace {
@@ -190,6 +246,30 @@
     width: 100%;
     min-width: 0;
     min-height: 50px;
+  }
+
+  .login-card {
+    gap: 16px;
+    width: 100%;
+    max-width: none;
+    margin-inline: -2px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .login-card input {
+    min-height: 48px;
+  }
+
+  .login-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .login-actions .primary-button {
+    width: 100%;
+    min-height: 48px;
+    margin-left: 0;
   }
 
   .table-card {
@@ -395,6 +475,15 @@
     min-height: 0;
   }
 
+  .login-card {
+    width: 100%;
+    max-width: none;
+  }
+
+  .login-actions .primary-button {
+    min-height: 46px;
+  }
+
   .detail-card .editor-heading,
   .editor-card .editor-heading {
     align-items: flex-start;
@@ -454,12 +543,15 @@
 @media (forced-colors: active) {
   .detail-card,
   .editor-card,
+  .login-card,
   .editor-section,
   .address-editor,
   .detail-value,
   .detail-note,
   .privacy-note,
-  .favorite-toggle {
+  .favorite-toggle,
+  .account-controls,
+  .backend-status {
     border-color: CanvasText;
     box-shadow: none;
   }
