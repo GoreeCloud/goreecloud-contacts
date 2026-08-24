@@ -1,0 +1,251 @@
+/* Glaze UI 1.4 Contacts form-factor refinements.
+ * Loaded after glaze-form-factors.css to tighten reachability and narrow-window behavior.
+ */
+
+/* Compact windows: keep primary destinations in a true lower reachability zone. */
+@media (max-width: 719px) {
+  body {
+    padding-bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
+  .workspace {
+    display: block;
+    min-height: 0;
+  }
+
+  .sidebar {
+    position: relative;
+    top: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    height: auto;
+    padding: 12px 14px 14px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--glaze-border);
+    background: var(--glaze-surface-strong);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .create-button {
+    position: fixed;
+    right: 16px;
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    z-index: 46;
+    width: auto;
+    min-width: 168px;
+    min-height: 54px;
+    margin: 0;
+    padding-inline: 20px;
+    border-radius: 18px;
+    text-align: center;
+  }
+
+  .create-button:disabled {
+    display: none;
+  }
+
+  .contact-navigation {
+    position: fixed;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 12px;
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--glaze-surface-solid) 90%, transparent);
+    box-shadow: var(--glaze-shadow-md);
+    backdrop-filter: blur(var(--glaze-blur)) saturate(145%);
+    -webkit-backdrop-filter: blur(var(--glaze-blur)) saturate(145%);
+  }
+
+  .contact-navigation .nav-item {
+    min-height: 50px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .sidebar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0 0 2px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .sidebar-section .section-label {
+    display: none;
+  }
+
+  .sidebar-section .muted {
+    flex: 0 0 100%;
+    width: 100%;
+    margin: 0;
+    padding: 8px 2px;
+  }
+
+  .book-button {
+    width: auto;
+    min-width: max-content;
+    min-height: 44px;
+    padding-inline: 14px;
+    border-radius: 999px;
+  }
+
+  .mode-badge,
+  .read-only-badge {
+    margin: 0;
+    justify-self: start;
+  }
+
+  .content {
+    width: 100%;
+    padding: 16px 14px 28px;
+  }
+
+  .content-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .search {
+    width: 100%;
+    min-width: 0;
+    min-height: 50px;
+  }
+
+  .table-card {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .table-heading {
+    display: none !important;
+  }
+
+  .table-card .contact-row:not(.table-heading) {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 18px;
+    background: var(--glaze-surface);
+    box-shadow: var(--glaze-shadow-sm);
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:not(.row-actions) {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    gap: 10px;
+    overflow-wrap: anywhere;
+    color: var(--glaze-muted);
+    font-size: 0.9rem;
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:nth-child(2)::before {
+    content: 'Email';
+    color: var(--glaze-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:nth-child(3)::before {
+    content: 'Phone';
+    color: var(--glaze-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .row-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .row-action {
+    min-height: 46px;
+  }
+
+  .editor-grid,
+  .detail-grid,
+  .name-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Narrow tablet portrait keeps the tablet navigation pane but avoids cramped two-up cards. */
+@media (min-width: 720px) and (max-width: 839px) {
+  .workspace {
+    grid-template-columns: 192px minmax(0, 1fr);
+  }
+
+  .content {
+    padding: 22px 20px;
+  }
+
+  .content-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-card {
+    grid-template-columns: 1fr;
+  }
+
+  .table-card .contact-row:not(.table-heading) {
+    min-height: 0;
+  }
+}
+
+/* Roomier tablet windows can use the two-up master-list canvas safely. */
+@media (min-width: 840px) and (max-width: 1023px) {
+  .table-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) and (max-width: 719px) {
+  .contact-navigation {
+    background: var(--glaze-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) and (max-width: 719px) {
+  .contact-navigation {
+    border: 2px solid CanvasText;
+    box-shadow: none;
+  }
+}
