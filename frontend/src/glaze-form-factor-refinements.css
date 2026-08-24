@@ -36,6 +36,15 @@
   background: var(--glaze-surface-muted);
 }
 
+.empty-state {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.notice code {
+  overflow-wrap: anywhere;
+}
+
 .detail-value strong,
 .detail-note strong,
 .editor-section legend {
@@ -248,6 +257,24 @@
     min-height: 50px;
   }
 
+  .notice {
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    border-radius: 16px;
+  }
+
+  .notice h3,
+  .notice p {
+    min-width: 0;
+  }
+
+  .notice p {
+    margin-top: 0;
+    line-height: 1.5;
+  }
+
   .login-card {
     gap: 16px;
     width: 100%;
@@ -287,6 +314,14 @@
 
   .table-heading {
     display: none !important;
+  }
+
+  .empty-state {
+    padding: 28px 16px;
+    border: 1px dashed var(--glaze-border-strong);
+    border-radius: 18px;
+    background: var(--glaze-surface-muted);
+    text-align: center;
   }
 
   .table-card .contact-row:not(.table-heading) {
@@ -551,7 +586,8 @@
   .privacy-note,
   .favorite-toggle,
   .account-controls,
-  .backend-status {
+  .backend-status,
+  .empty-state {
     border-color: CanvasText;
     box-shadow: none;
   }
