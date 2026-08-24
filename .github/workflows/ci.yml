@@ -176,6 +176,8 @@ jobs:
             -e SESSION_DB_PATH=/data/sessions.sqlite3 \
             -e SESSION_ENCRYPTION_KEYS_FILE=/run/secrets/session-encryption-keys \
             -e CSRF_ORIGIN_CHECK_ENABLED=true \
+            -e LOGIN_THROTTLE_MAX_ATTEMPTS=2 \
+            -e LOGIN_THROTTLE_WINDOW_SECONDS=60 \
             -p 127.0.0.1:18080:8000 \
             goreecloud-contacts:ci
 
@@ -243,6 +245,13 @@ jobs:
           test "$(docker exec contacts-runtime id -g)" = "10001"
           ! docker exec contacts-runtime env | grep -q '^SESSION_ENCRYPTION_KEYS='
           test "$(docker exec contacts-runtime sh -c 'stat -c %a /run/secrets/session-encryption-keys')" = "400"
+
+          docker exec contacts-runtime python -c \
+            'from app.main import login_throttle; d = login_throttle.check("ci-runtime-shared-throttle", now=100.0); assert d.allowed and d.retry_after_seconds == 0'
+          docker exec contacts-runtime python -c \
+            'from app.main import login_throttle; d = login_throttle.check(" CI-RUNTIME-SHARED-THROTTLE ", now=101.0); assert d.allowed and d.retry_after_seconds == 0'
+          docker exec contacts-runtime python -c \
+            'from app.main import login_throttle; d = login_throttle.check("ci-runtime-shared-throttle", now=102.0); assert not d.allowed and d.retry_after_seconds == 58'
 
       - name: Show runtime logs
         if: always()
