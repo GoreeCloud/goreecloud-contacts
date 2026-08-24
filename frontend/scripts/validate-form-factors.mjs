@@ -40,6 +40,21 @@ const requirements = [
     message: 'Compact Mobile must transform the desktop contact table into labeled contact cards.',
   },
   {
+    ok: refinementSource.includes('.login-card {') &&
+      refinementSource.includes('.login-card input {') &&
+      refinementSource.includes('.login-actions .primary-button {') &&
+      refinementSource.includes('min-height: 48px;'),
+    message: 'Compact sign-in must use a full-width, touch-sized single-task form.',
+  },
+  {
+    ok: refinementSource.includes('.account-controls {') &&
+      refinementSource.includes('grid-template-columns: minmax(0, 1fr) auto;') &&
+      refinementSource.includes('.account-controls > span {') &&
+      refinementSource.includes('text-overflow: ellipsis;') &&
+      refinementSource.includes('.backend-status {'),
+    message: 'Compact account and backend state must remain bounded, readable, and touch-friendly.',
+  },
+  {
     ok: refinementSource.includes('.detail-card,') &&
       refinementSource.includes('.editor-card,') &&
       refinementSource.includes('background: var(--glaze-surface);') &&
@@ -56,8 +71,9 @@ const requirements = [
   {
     ok: refinementSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
       refinementSource.includes('grid-template-columns: 192px minmax(0, 1fr);') &&
-      refinementSource.includes('.editor-grid,\n  .detail-grid,\n  .name-grid {\n    grid-template-columns: 1fr;'),
-    message: 'Narrow Tablet must retain a touch navigation pane while keeping detail/editor forms single-column.',
+      refinementSource.includes('.editor-grid,\n  .detail-grid,\n  .name-grid {\n    grid-template-columns: 1fr;') &&
+      refinementSource.includes('.login-card {\n    width: 100%;\n    max-width: none;'),
+    message: 'Narrow Tablet must retain a touch navigation pane while keeping auth and detail/editor workflows comfortably single-column.',
   },
   {
     ok: refinementSource.includes('@media (min-width: 840px) and (max-width: 1023px)') &&
@@ -101,10 +117,13 @@ const requirements = [
       duplicateSource.includes('@media (prefers-reduced-transparency: reduce)') &&
       formFactorSource.includes('@media (forced-colors: active)') &&
       refinementSource.includes('@media (forced-colors: active) {') &&
+      refinementSource.includes('.login-card,') &&
+      refinementSource.includes('.account-controls,') &&
+      refinementSource.includes('.backend-status {') &&
       refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)') &&
       vcfSource.includes('@media (forced-colors: active)') &&
       duplicateSource.includes('@media (forced-colors: active)'),
-    message: 'Form-factor, detail/editor, and workflow surfaces must retain transparency and forced-colors resilience.',
+    message: 'Form-factor, authentication, detail/editor, and workflow surfaces must retain transparency and forced-colors resilience.',
   },
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(
