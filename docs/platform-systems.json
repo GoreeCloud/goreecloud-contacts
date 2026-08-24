@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "application": "GoreeCloud Contacts",
+  "native_application": true,
+  "stable_allowed": false,
+  "systems": {
+    "glaze_ui": {
+      "required": true,
+      "contract": "1.4.0",
+      "state": "implemented-source-runtime-ci",
+      "evidence": [
+        "frontend/src/glaze.css",
+        "frontend/scripts/validate-glaze-ui.mjs",
+        ".github/workflows/ci.yml"
+      ]
+    },
+    "wardveil_security": {
+      "required": true,
+      "state": "required-not-yet-accepted",
+      "evidence": [
+        "docs/security.md"
+      ]
+    },
+    "privacy_shield": {
+      "required": true,
+      "state": "required-not-yet-accepted",
+      "evidence": [
+        "backend/app/logging_privacy.py",
+        "backend/app/browser_security.py"
+      ]
+    },
+    "everkeep": {
+      "required": true,
+      "state": "required-not-yet-accepted",
+      "evidence": [
+        "docs/production-deployment-runtime.md"
+      ]
+    }
+  },
+  "release_boundary": "Stable remains blocked until all four mandatory platform systems have current validated acceptance evidence and the existing target-environment production gates are closed."
+}
