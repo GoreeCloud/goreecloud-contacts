@@ -17,7 +17,7 @@ from .config import fastapi_documentation_options, get_settings
 from .duplicate_routes import build_duplicate_router
 from .health import carddav_transport_ready
 from .logging_privacy import configure_access_log_privacy
-from .login_throttle import LoginThrottle
+from .login_throttle import create_login_throttle
 from .security import UNSAFE_METHODS, request_origin_is_trusted
 from .vcf_routes import build_vcf_router
 from .models import (
@@ -44,9 +44,11 @@ session_store = create_session_store(
     database_path=settings.session_db_path,
     encryption_keys=settings.session_encryption_key_list,
 )
-login_throttle = LoginThrottle(
+login_throttle = create_login_throttle(
+    backend=settings.session_store_backend,
     max_attempts=settings.login_throttle_max_attempts,
     window_seconds=settings.login_throttle_window_seconds,
+    database_path=settings.session_db_path,
 )
 
 

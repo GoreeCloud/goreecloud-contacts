@@ -28,7 +28,7 @@ The browser receives only that token in a cookie configured as:
 
 Expired, missing, or unknown session tokens cannot access protected CardDAV routes.
 
-Authentication abuse is bounded by configurable sign-in throttling keyed only by normalized username. The throttle does not retain passwords, session tokens, request bodies, contact data, or client addresses. Exhausted attempt budgets return HTTP 429 with `Retry-After`, and a successful login resets the identity window.
+Authentication abuse is bounded by configurable sign-in throttling. Development/test memory sessions use a process-local throttle. When the shared SQLite session backend is selected, the throttle uses the same protected SQLite database so all backend workers enforce one attempt budget instead of maintaining independent per-process counters. The normalized username is converted to a one-way SHA-256 digest before persistence; passwords, session tokens, request bodies, contact data, and client addresses are not retained by the throttle. Exhausted attempt budgets return HTTP 429 with `Retry-After`, and a successful login resets the identity window across workers.
 
 ## Authorization and Multi-User Isolation
 
@@ -62,9 +62,11 @@ Authentication does not bypass mutation safety gates.
 
 The production-shaped runtime supports encrypted shared SQLite-backed sessions so multiple configured backend workers can share application sessions. Session encryption key material is supplied separately from ordinary environment configuration and is not embedded in the image.
 
-The production container uses a dedicated writable data location for session state while the remainder of the container filesystem is read-only. CI verifies non-root runtime identity, secret-file permissions, dependency consistency, hardened container startup, and production-shaped session configuration.
+The shared login-throttle table is colocated in the protected session database but stores only one-way username digests and attempt timestamps. It does not store credentials or contact content. SQLite write transactions serialize check-and-record decisions across workers, preventing the production two-worker runtime from multiplying the configured attempt allowance.
 
-Actual target-environment backup, restore, key rotation, rollback, worker behavior, and recovery validation remain production-approval gates.
+The production container uses a dedicated writable data location for session and throttle state while the remainder of the container filesystem is read-only. CI verifies non-root runtime identity, secret-file permissions, dependency consistency, hardened container startup, production-shaped session configuration, process-local throttle behavior, shared cross-instance throttle behavior, spawned-OS-process shared-budget enforcement, reset behavior, expiry, and plaintext-username non-persistence. The production-image smoke test additionally launches separate Python processes inside the hardened container through the application-wired `login_throttle`; the configured attempt budget must remain shared across those processes and the over-budget process must be blocked.
+
+Actual target-environment backup, restore, key rotation, rollback, worker behavior, throttle behavior through the final reverse-proxy path, and recovery validation remain production-approval gates.
 
 ## Cross-Site Request Protection
 
@@ -123,4 +125,4 @@ Authentication tests must verify that passwords and opaque tokens are not expose
 
 ## Security Review Gate
 
-Production deployment still requires target-environment review and evidence for authentication, authorization, session protection, CSRF enforcement, Caddy/HTTPS/HSTS behavior, logging, request limits, container permissions, network exposure, monitoring, backup, restoration, key rotation, rollback, DAVx5 coexistence, browser/mobile acceptance, and controlled production-family onboarding.
+Production deployment still requires target-environment review and evidence for authentication, authorization, shared-worker throttle enforcement through the deployed runtime, session protection, CSRF enforcement, Caddy/HTTPS/HSTS behavior, logging, request limits, container permissions, network exposure, monitoring, backup, restoration, key rotation, rollback, DAVx5 coexistence, browser/mobile acceptance, and controlled production-family onboarding.
