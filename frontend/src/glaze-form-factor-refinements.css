@@ -2,6 +2,74 @@
  * Loaded after glaze-form-factors.css to tighten reachability and narrow-window behavior.
  */
 
+/* Bring legacy Milestone 4 detail/editor surfaces under the current Glaze material system. */
+.detail-card,
+.editor-card,
+.login-card {
+  border-color: var(--glaze-border);
+  background: var(--glaze-surface);
+  box-shadow: var(--glaze-shadow-sm);
+  backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+}
+
+.login-card label,
+.editor-card label {
+  color: var(--glaze-text);
+}
+
+.login-card input,
+.editor-card input,
+.editor-card textarea {
+  border-color: var(--glaze-border-strong);
+  background: var(--glaze-surface-strong);
+  color: var(--glaze-text);
+}
+
+.detail-value strong,
+.detail-note strong,
+.editor-section legend {
+  color: var(--glaze-muted);
+}
+
+.detail-value span,
+.detail-note p {
+  color: var(--glaze-text);
+}
+
+.editor-section,
+.address-editor {
+  border-color: var(--glaze-border);
+}
+
+.address-editor,
+.privacy-note {
+  background: var(--glaze-surface-muted);
+}
+
+.secondary-button {
+  background: var(--glaze-surface-muted);
+  color: var(--glaze-text);
+}
+
+.primary-button {
+  background: var(--glaze-accent);
+  color: #fff;
+}
+
+.danger-button,
+.inline-error {
+  border-color: color-mix(in srgb, var(--glaze-danger) 28%, transparent);
+  background: var(--glaze-danger-soft);
+  color: var(--glaze-danger);
+}
+
+.detail-actions .text-button,
+.editor-heading .text-button,
+.address-editor-heading .text-button {
+  color: var(--glaze-muted);
+}
+
 /* Compact windows: keep primary destinations in a true lower reachability zone. */
 @media (max-width: 719px) {
   body {
@@ -191,10 +259,110 @@
     min-height: 46px;
   }
 
+  .detail-card,
+  .editor-card {
+    gap: 16px;
+    margin-inline: -2px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .detail-card .editor-heading,
+  .editor-card .editor-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .detail-heading-copy {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .detail-avatar,
+  .detail-photo {
+    width: 54px;
+    height: 54px;
+    flex-basis: 54px;
+  }
+
+  .detail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .detail-actions button,
+  .editor-heading > .text-button {
+    min-height: 46px;
+  }
+
   .editor-grid,
   .detail-grid,
   .name-grid {
     grid-template-columns: 1fr;
+  }
+
+  .detail-grid {
+    gap: 12px;
+  }
+
+  .detail-value,
+  .detail-note,
+  .privacy-note {
+    padding: 12px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 14px;
+    background: var(--glaze-surface-muted);
+  }
+
+  .editor-section {
+    gap: 14px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .address-editor {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .address-editor-heading {
+    align-items: center;
+  }
+
+  .favorite-toggle {
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 12px;
+    background: var(--glaze-surface-muted);
+  }
+
+  .editor-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .editor-actions > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .editor-actions button,
+  .editor-section > .secondary-button,
+  .address-editor-heading .text-button {
+    min-height: 46px;
+  }
+
+  .editor-actions .danger-button {
+    width: 100%;
+  }
+
+  .primary-button {
+    margin-left: 0;
   }
 }
 
@@ -226,12 +394,52 @@
   .table-card .contact-row:not(.table-heading) {
     min-height: 0;
   }
+
+  .detail-card .editor-heading,
+  .editor-card .editor-heading {
+    align-items: flex-start;
+  }
+
+  .editor-grid,
+  .detail-grid,
+  .name-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .editor-section,
+  .address-editor {
+    padding: 16px;
+  }
 }
 
-/* Roomier tablet windows can use the two-up master-list canvas safely. */
+/* Roomier tablet windows can use the two-up master-list and editor canvases safely. */
 @media (min-width: 840px) and (max-width: 1023px) {
   .table-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-grid,
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .name-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .detail-card,
+  .editor-card,
+  .login-card {
+    background: var(--glaze-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -240,6 +448,20 @@
     background: var(--glaze-surface-solid);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .detail-card,
+  .editor-card,
+  .editor-section,
+  .address-editor,
+  .detail-value,
+  .detail-note,
+  .privacy-note,
+  .favorite-toggle {
+    border-color: CanvasText;
+    box-shadow: none;
   }
 }
 
