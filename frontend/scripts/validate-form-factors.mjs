@@ -1,36 +1,44 @@
 import { readFile } from 'node:fs/promises'
 
-const [mainSource, formFactorSource] = await Promise.all([
+const [mainSource, formFactorSource, refinementSource] = await Promise.all([
   readFile(new URL('../src/main.tsx', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factors.css', import.meta.url), 'utf8'),
+  readFile(new URL('../src/glaze-form-factor-refinements.css', import.meta.url), 'utf8'),
 ])
 
 const requirements = [
   {
-    ok: mainSource.includes("import './glaze-form-factors.css'"),
-    message: 'The Contacts client must load the Glaze UI 1.4 form-factor layer.',
+    ok: mainSource.includes("import './glaze-form-factors.css'") &&
+      mainSource.includes("import './glaze-form-factor-refinements.css'"),
+    message: 'The Contacts client must load both Glaze UI 1.4 form-factor layers.',
   },
   {
     ok: formFactorSource.includes('Glaze UI 1.4.0 current-Stable'),
     message: 'The form-factor layer must identify the current Stable Glaze UI 1.4.0 contract.',
   },
   {
-    ok: formFactorSource.includes('@media (max-width: 599px)') &&
-      formFactorSource.includes('position: fixed;') &&
-      formFactorSource.includes('--contacts-mobile-action-offset'),
-    message: 'Mobile must provide a Compact reachability-first composition with a lower action zone.',
+    ok: refinementSource.includes('@media (max-width: 719px)') &&
+      refinementSource.includes('.contact-navigation') &&
+      refinementSource.includes('position: fixed;') &&
+      refinementSource.includes('env(safe-area-inset-bottom)'),
+    message: 'Compact Mobile must provide a true lower reachability navigation zone with safe-area handling.',
   },
   {
-    ok: formFactorSource.includes("content: 'Email'") &&
-      formFactorSource.includes("content: 'Phone'") &&
-      formFactorSource.includes('.table-card .contact-row:not(.table-heading)'),
-    message: 'Mobile must transform the desktop contact table into labeled contact cards.',
+    ok: refinementSource.includes("content: 'Email'") &&
+      refinementSource.includes("content: 'Phone'") &&
+      refinementSource.includes('.table-card .contact-row:not(.table-heading)'),
+    message: 'Compact Mobile must transform the desktop contact table into labeled contact cards.',
   },
   {
-    ok: formFactorSource.includes('@media (min-width: 600px) and (max-width: 1023px)') &&
-      formFactorSource.includes('grid-template-columns: 204px minmax(0, 1fr);') &&
-      formFactorSource.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'),
-    message: 'Tablet must use a persistent touch navigation pane and intentionally expanded card canvas.',
+    ok: refinementSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
+      refinementSource.includes('grid-template-columns: 192px minmax(0, 1fr);') &&
+      refinementSource.includes('grid-template-columns: 1fr;'),
+    message: 'Narrow Tablet must retain a touch navigation pane without forcing cramped two-up contact cards.',
+  },
+  {
+    ok: refinementSource.includes('@media (min-width: 840px) and (max-width: 1023px)') &&
+      refinementSource.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'),
+    message: 'Roomier Tablet must use an intentionally expanded two-up contact canvas.',
   },
   {
     ok: formFactorSource.includes('@media (min-width: 1024px) and (max-width: 1439px)') &&
@@ -45,12 +53,14 @@ const requirements = [
   },
   {
     ok: formFactorSource.includes('@media (prefers-reduced-transparency: reduce)') &&
-      formFactorSource.includes('@media (forced-colors: active)'),
+      refinementSource.includes('@media (prefers-reduced-transparency: reduce) and (max-width: 719px)') &&
+      formFactorSource.includes('@media (forced-colors: active)') &&
+      refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)'),
     message: 'Form-factor layouts must retain transparency and forced-colors resilience.',
   },
   {
-    ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(formFactorSource),
-    message: 'The form-factor layer must not introduce third-party presentation dependencies.',
+    ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(`${formFactorSource}\n${refinementSource}`),
+    message: 'The form-factor layers must not introduce third-party presentation dependencies.',
   },
 ]
 
