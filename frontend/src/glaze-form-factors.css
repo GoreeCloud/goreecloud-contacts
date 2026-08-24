@@ -1,0 +1,486 @@
+/* Glaze UI 1.4.0 current-Stable form-factor layout for GoreeCloud Contacts.
+ * Breakpoints are implementation signals; each range uses a purpose-built composition.
+ */
+
+:root {
+  --contacts-mobile-action-offset: calc(16px + env(safe-area-inset-bottom));
+  --contacts-content-max: 1480px;
+}
+
+/* Mobile / Compact: touch-first, reachability-first, single-task composition. */
+@media (max-width: 599px) {
+  body {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    min-height: 72px;
+    padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+    border-radius: 0 0 22px 22px;
+  }
+
+  .topbar h1 {
+    font-size: 1.45rem;
+  }
+
+  .topbar-actions {
+    gap: 8px;
+  }
+
+  .backend-status {
+    font-size: 0.78rem;
+  }
+
+  .workspace {
+    display: block;
+    min-height: 0;
+  }
+
+  .sidebar {
+    position: relative;
+    top: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    height: auto;
+    padding: 12px 14px 14px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--glaze-border);
+    background: var(--glaze-surface-strong);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .create-button {
+    position: fixed;
+    right: 16px;
+    bottom: var(--contacts-mobile-action-offset);
+    z-index: 45;
+    width: auto;
+    min-width: 168px;
+    min-height: 54px;
+    margin: 0;
+    padding-inline: 20px;
+    border-radius: 18px;
+    text-align: center;
+    box-shadow: 0 18px 40px rgba(49, 94, 234, 0.28);
+  }
+
+  .create-button:disabled {
+    display: none;
+  }
+
+  .contact-navigation {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .contact-navigation .nav-item {
+    min-height: 48px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .sidebar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0 0 2px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  .sidebar-section .section-label,
+  .sidebar-section .muted {
+    flex: 0 0 100%;
+    width: 100%;
+  }
+
+  .sidebar-section .section-label {
+    display: none;
+  }
+
+  .sidebar-section .muted {
+    margin: 0;
+    padding: 8px 2px;
+  }
+
+  .book-button {
+    width: auto;
+    min-width: max-content;
+    min-height: 44px;
+    padding-inline: 14px;
+    border-radius: 999px;
+  }
+
+  .mode-badge,
+  .read-only-badge {
+    margin: 0;
+    justify-self: start;
+  }
+
+  .content {
+    width: 100%;
+    padding: 16px 14px 28px;
+  }
+
+  .content-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .content-header h2 {
+    font-size: clamp(1.65rem, 8vw, 2rem);
+  }
+
+  .search {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 16px;
+  }
+
+  .notice,
+  .login-card,
+  .editor-card,
+  .detail-card,
+  .vcf-tools,
+  .duplicate-tools {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .login-card {
+    max-width: none;
+  }
+
+  .table-card {
+    display: grid;
+    gap: 10px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .table-heading {
+    display: none !important;
+  }
+
+  .table-card .contact-row:not(.table-heading) {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 18px;
+    background: var(--glaze-surface);
+    box-shadow: var(--glaze-shadow-sm);
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:not(.row-actions) {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    gap: 10px;
+    color: var(--glaze-muted);
+    font-size: 0.9rem;
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:nth-child(2)::before {
+    content: 'Email';
+    color: var(--glaze-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:nth-child(3)::before {
+    content: 'Phone';
+    color: var(--glaze-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .row-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .row-action {
+    min-height: 46px;
+  }
+
+  .editor-heading,
+  .detail-heading-copy {
+    align-items: flex-start;
+  }
+
+  .editor-heading {
+    flex-direction: column;
+  }
+
+  .detail-heading-copy {
+    align-items: center;
+  }
+
+  .detail-actions,
+  .editor-actions > div {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .detail-actions > button,
+  .editor-actions > div > button {
+    flex: 1 1 0;
+    min-height: 46px;
+  }
+
+  .editor-grid,
+  .detail-grid,
+  .name-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tablet / Medium: touch-first navigation panel with pane-aware working canvas. */
+@media (min-width: 600px) and (max-width: 1023px) {
+  .topbar {
+    min-height: 84px;
+    padding: 14px 22px;
+  }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 204px minmax(0, 1fr);
+    min-height: calc(100vh - 84px);
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 84px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 84px);
+    padding: 18px 12px;
+    overflow-y: auto;
+    border-right: 1px solid var(--glaze-border);
+    border-bottom: 0;
+    background: color-mix(in srgb, var(--glaze-surface-solid) 76%, transparent);
+    backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+    -webkit-backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+  }
+
+  .create-button {
+    margin: 0 0 16px;
+    min-height: 50px;
+    text-align: center;
+  }
+
+  .contact-navigation {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-section {
+    display: grid;
+    align-items: stretch;
+    gap: 6px;
+    margin-top: 22px;
+    overflow: visible;
+  }
+
+  .book-button {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .mode-badge,
+  .read-only-badge {
+    margin: auto 4px 0;
+  }
+
+  .content {
+    width: 100%;
+    padding: 24px;
+  }
+
+  .content-header {
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .content-header > div {
+    min-width: 0;
+  }
+
+  .search {
+    width: min(360px, 48%);
+    min-width: 240px;
+  }
+
+  .table-card {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .table-heading {
+    display: none !important;
+  }
+
+  .table-card .contact-row:not(.table-heading) {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 10px;
+    min-height: 188px;
+    padding: 16px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 18px;
+    background: var(--glaze-surface);
+    box-shadow: var(--glaze-shadow-sm);
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:not(.row-actions) {
+    overflow-wrap: anywhere;
+    color: var(--glaze-muted);
+    font-size: 0.86rem;
+  }
+
+  .row-actions {
+    margin-top: auto;
+  }
+
+  .row-action {
+    min-height: 44px;
+  }
+
+  .editor-grid,
+  .detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .name-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Desktop / Expanded: persistent workspace navigation and dense productivity list. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .workspace {
+    grid-template-columns: 252px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 24px 16px;
+  }
+
+  .content {
+    width: 100%;
+    max-width: var(--contacts-content-max);
+    padding: 32px clamp(28px, 3vw, 42px);
+  }
+
+  .content-header {
+    min-height: 58px;
+  }
+
+  .table-card .contact-row {
+    grid-template-columns:
+      minmax(220px, 1.45fr)
+      minmax(180px, 1fr)
+      minmax(150px, 0.8fr)
+      minmax(132px, 0.55fr);
+  }
+
+  .row-action {
+    min-height: 36px;
+  }
+}
+
+/* Wide Desktop: expanded workspace with bounded readable content and richer breathing room. */
+@media (min-width: 1440px) {
+  .topbar {
+    padding-inline: 40px;
+  }
+
+  .workspace {
+    grid-template-columns: 288px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 28px 20px;
+  }
+
+  .content {
+    width: min(100%, 1600px);
+    padding: 40px 48px 52px;
+  }
+
+  .content-header {
+    margin-bottom: 28px;
+  }
+
+  .search {
+    width: min(480px, 38vw);
+  }
+
+  .table-card .contact-row {
+    grid-template-columns:
+      minmax(260px, 1.6fr)
+      minmax(220px, 1.1fr)
+      minmax(190px, 0.9fr)
+      minmax(150px, 0.55fr);
+    min-height: 70px;
+    padding-inline: 24px;
+  }
+
+  .login-card,
+  .editor-card,
+  .detail-card,
+  .vcf-tools,
+  .duplicate-tools {
+    padding: 26px;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  @media (min-width: 600px) and (max-width: 1023px) {
+    .sidebar {
+      background: var(--glaze-surface-solid);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .create-button {
+    border: 2px solid ButtonText;
+    box-shadow: none;
+  }
+
+  @media (max-width: 599px) {
+    .table-card .contact-row:not(.table-heading) {
+      border: 1px solid CanvasText;
+      box-shadow: none;
+    }
+  }
+}

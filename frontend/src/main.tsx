@@ -5,6 +5,8 @@ import App from './App.tsx'
 import './styles.css'
 import './glaze.css'
 import './glaze-accessibility.css'
+import './glaze-form-factors.css'
+import './glaze-form-factor-refinements.css'
 
 const root = document.getElementById('root')
 

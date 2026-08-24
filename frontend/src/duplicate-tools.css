@@ -1,9 +1,12 @@
 .duplicate-tools {
   margin-bottom: 1.25rem;
   padding: 1.25rem;
-  border: 1px solid var(--border, #d7dce4);
-  border-radius: 18px;
-  background: var(--surface, #fff);
+  border: 1px solid var(--glaze-border);
+  border-radius: var(--glaze-radius-md);
+  background: var(--glaze-surface);
+  box-shadow: var(--glaze-shadow-sm);
+  backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
 }
 
 .duplicate-tools-heading,
@@ -41,14 +44,14 @@
 }
 
 .duplicate-destination {
-  background: rgba(76, 110, 245, 0.1);
+  background: var(--glaze-accent-soft);
 }
 
 .duplicate-success {
   margin-top: 1rem;
   padding: 0.75rem 0.9rem;
-  border-radius: 12px;
-  background: rgba(46, 160, 67, 0.1);
+  border-radius: var(--glaze-radius-sm);
+  background: var(--glaze-success-soft);
 }
 
 .duplicate-candidates,
@@ -61,20 +64,22 @@
 .duplicate-candidate,
 .duplicate-review {
   padding: 1rem;
-  border: 1px solid var(--border, #d7dce4);
-  border-radius: 14px;
+  border: 1px solid var(--glaze-border);
+  border-radius: var(--glaze-radius-sm);
+  background: var(--glaze-surface-muted);
 }
 
 .duplicate-confidence.high {
-  background: rgba(220, 53, 69, 0.12);
+  background: var(--glaze-danger-soft);
 }
 
 .duplicate-confidence.medium {
-  background: rgba(245, 159, 0, 0.14);
+  color: var(--glaze-warning);
+  background: color-mix(in srgb, var(--glaze-warning) 12%, transparent);
 }
 
 .duplicate-confidence.low {
-  background: rgba(76, 110, 245, 0.1);
+  background: var(--glaze-accent-soft);
 }
 
 .duplicate-signals {
@@ -86,7 +91,7 @@
 
 .duplicate-signals span {
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border, #d7dce4);
+  border: 1px solid var(--glaze-border);
   border-radius: 999px;
   font-size: 0.76rem;
 }
@@ -104,9 +109,11 @@
   display: grid;
   gap: 0.4rem;
   align-content: start;
+  min-width: 0;
   padding: 0.9rem;
-  border: 1px solid var(--border, #d7dce4);
-  border-radius: 12px;
+  border: 1px solid var(--glaze-border);
+  border-radius: var(--glaze-radius-sm);
+  background: var(--glaze-surface-strong);
 }
 
 .duplicate-contact .secondary-button {
@@ -114,11 +121,11 @@
 }
 
 .duplicate-role.primary {
-  background: rgba(46, 160, 67, 0.12);
+  background: var(--glaze-success-soft);
 }
 
 .duplicate-role.duplicate {
-  background: rgba(220, 53, 69, 0.1);
+  background: var(--glaze-danger-soft);
 }
 
 .duplicate-conflicts,
@@ -126,8 +133,8 @@
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem;
-  border-radius: 12px;
-  background: rgba(127, 127, 127, 0.06);
+  border-radius: var(--glaze-radius-sm);
+  background: var(--glaze-surface-muted);
 }
 
 .duplicate-conflicts h5,
@@ -149,6 +156,7 @@
 
 .duplicate-conflict select {
   width: 100%;
+  min-height: 44px;
 }
 
 .duplicate-proposal dl {
@@ -181,18 +189,33 @@
 .duplicate-empty {
   padding: 1rem;
   text-align: center;
-  color: var(--muted, #667085);
+  color: var(--glaze-muted);
 }
 
-@media (max-width: 760px) {
+/* Compact / Mobile: review one comparison at a time with reachable full-width actions. */
+@media (max-width: 719px) {
+  .duplicate-tools {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
   .duplicate-tools-heading,
-  .duplicate-review-heading {
+  .duplicate-review-heading,
+  .duplicate-candidate-heading {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .duplicate-heading-actions {
     width: 100%;
     align-items: stretch;
+  }
+
+  .duplicate-heading-actions button,
+  .duplicate-contact .secondary-button,
+  .duplicate-review-actions button {
+    width: 100%;
+    min-height: 46px;
   }
 
   .duplicate-pair,
@@ -208,5 +231,32 @@
 
   .duplicate-review-actions {
     flex-direction: column-reverse;
+  }
+}
+
+/* Narrow Tablet: avoid squeezed side-by-side comparison cards beside the navigation pane. */
+@media (min-width: 720px) and (max-width: 839px) {
+  .duplicate-pair,
+  .duplicate-review-pair {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .duplicate-tools {
+    background: var(--glaze-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .duplicate-tools,
+  .duplicate-candidate,
+  .duplicate-review,
+  .duplicate-contact,
+  .duplicate-review-pair article {
+    border-color: CanvasText;
+    box-shadow: none;
   }
 }

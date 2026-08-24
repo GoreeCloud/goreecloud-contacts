@@ -1,0 +1,601 @@
+/* Glaze UI 1.4 Contacts form-factor refinements.
+ * Loaded after glaze-form-factors.css to tighten reachability and narrow-window behavior.
+ */
+
+/* Bring legacy Milestone 4 detail/editor/auth surfaces under the current Glaze material system. */
+.detail-card,
+.editor-card,
+.login-card {
+  border-color: var(--glaze-border);
+  background: var(--glaze-surface);
+  box-shadow: var(--glaze-shadow-sm);
+  backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--glaze-blur)) saturate(135%);
+}
+
+.login-card label,
+.editor-card label {
+  color: var(--glaze-text);
+}
+
+.login-card input,
+.editor-card input,
+.editor-card textarea {
+  border-color: var(--glaze-border-strong);
+  background: var(--glaze-surface-strong);
+  color: var(--glaze-text);
+}
+
+.account-controls {
+  border-color: var(--glaze-border);
+  color: var(--glaze-muted);
+}
+
+.backend-status {
+  border-color: var(--glaze-border);
+  background: var(--glaze-surface-muted);
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.notice code {
+  overflow-wrap: anywhere;
+}
+
+.detail-value strong,
+.detail-note strong,
+.editor-section legend {
+  color: var(--glaze-muted);
+}
+
+.detail-value span,
+.detail-note p {
+  color: var(--glaze-text);
+}
+
+.editor-section,
+.address-editor {
+  border-color: var(--glaze-border);
+}
+
+.address-editor,
+.privacy-note {
+  background: var(--glaze-surface-muted);
+}
+
+.secondary-button {
+  background: var(--glaze-surface-muted);
+  color: var(--glaze-text);
+}
+
+.primary-button {
+  background: var(--glaze-accent);
+  color: #fff;
+}
+
+.danger-button,
+.inline-error {
+  border-color: color-mix(in srgb, var(--glaze-danger) 28%, transparent);
+  background: var(--glaze-danger-soft);
+  color: var(--glaze-danger);
+}
+
+.detail-actions .text-button,
+.editor-heading .text-button,
+.address-editor-heading .text-button,
+.account-controls .text-button {
+  color: var(--glaze-muted);
+}
+
+/* Compact windows: keep primary destinations in a true lower reachability zone. */
+@media (max-width: 719px) {
+  body {
+    padding-bottom: calc(154px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .account-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    width: 100%;
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 14px;
+    background: var(--glaze-surface-muted);
+  }
+
+  .account-controls > span {
+    align-self: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .account-controls .text-button {
+    min-height: 42px;
+    padding-inline: 12px;
+  }
+
+  .backend-status {
+    justify-self: stretch;
+    min-height: 42px;
+    padding: 8px 10px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 14px;
+  }
+
+  .workspace {
+    display: block;
+    min-height: 0;
+  }
+
+  .sidebar {
+    position: relative;
+    top: auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    height: auto;
+    padding: 12px 14px 14px;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--glaze-border);
+    background: var(--glaze-surface-strong);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .create-button {
+    position: fixed;
+    right: 16px;
+    bottom: calc(82px + env(safe-area-inset-bottom));
+    z-index: 46;
+    width: auto;
+    min-width: 168px;
+    min-height: 54px;
+    margin: 0;
+    padding-inline: 20px;
+    border-radius: 18px;
+    text-align: center;
+  }
+
+  .create-button:disabled {
+    display: none;
+  }
+
+  .contact-navigation {
+    position: fixed;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: 12px;
+    z-index: 45;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--glaze-surface-solid) 90%, transparent);
+    box-shadow: var(--glaze-shadow-md);
+    backdrop-filter: blur(var(--glaze-blur)) saturate(145%);
+    -webkit-backdrop-filter: blur(var(--glaze-blur)) saturate(145%);
+  }
+
+  .contact-navigation .nav-item {
+    min-height: 50px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .sidebar-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0 0 2px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .sidebar-section .section-label {
+    display: none;
+  }
+
+  .sidebar-section .muted {
+    flex: 0 0 100%;
+    width: 100%;
+    margin: 0;
+    padding: 8px 2px;
+  }
+
+  .book-button {
+    width: auto;
+    min-width: max-content;
+    min-height: 44px;
+    padding-inline: 14px;
+    border-radius: 999px;
+  }
+
+  .mode-badge,
+  .read-only-badge {
+    margin: 0;
+    justify-self: start;
+  }
+
+  .content {
+    width: 100%;
+    padding: 16px 14px 28px;
+  }
+
+  .content-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .search {
+    width: 100%;
+    min-width: 0;
+    min-height: 50px;
+  }
+
+  .notice {
+    display: grid;
+    gap: 6px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    border-radius: 16px;
+  }
+
+  .notice h3,
+  .notice p {
+    min-width: 0;
+  }
+
+  .notice p {
+    margin-top: 0;
+    line-height: 1.5;
+  }
+
+  .login-card {
+    gap: 16px;
+    width: 100%;
+    max-width: none;
+    margin-inline: -2px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .login-card input {
+    min-height: 48px;
+  }
+
+  .login-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .login-actions .primary-button {
+    width: 100%;
+    min-height: 48px;
+    margin-left: 0;
+  }
+
+  .table-card {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .table-heading {
+    display: none !important;
+  }
+
+  .empty-state {
+    padding: 28px 16px;
+    border: 1px dashed var(--glaze-border-strong);
+    border-radius: 18px;
+    background: var(--glaze-surface-muted);
+    text-align: center;
+  }
+
+  .table-card .contact-row:not(.table-heading) {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-content: start;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 18px;
+    background: var(--glaze-surface);
+    box-shadow: var(--glaze-shadow-sm);
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:not(.row-actions) {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    gap: 10px;
+    overflow-wrap: anywhere;
+    color: var(--glaze-muted);
+    font-size: 0.9rem;
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:nth-child(2)::before {
+    content: 'Email';
+    color: var(--glaze-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .table-card .contact-row:not(.table-heading) > span:nth-child(3)::before {
+    content: 'Phone';
+    color: var(--glaze-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .row-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .row-action {
+    min-height: 46px;
+  }
+
+  .detail-card,
+  .editor-card {
+    gap: 16px;
+    margin-inline: -2px;
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .detail-card .editor-heading,
+  .editor-card .editor-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .detail-heading-copy {
+    align-items: center;
+    gap: 12px;
+  }
+
+  .detail-avatar,
+  .detail-photo {
+    width: 54px;
+    height: 54px;
+    flex-basis: 54px;
+  }
+
+  .detail-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .detail-actions button,
+  .editor-heading > .text-button {
+    min-height: 46px;
+  }
+
+  .editor-grid,
+  .detail-grid,
+  .name-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid {
+    gap: 12px;
+  }
+
+  .detail-value,
+  .detail-note,
+  .privacy-note {
+    padding: 12px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 14px;
+    background: var(--glaze-surface-muted);
+  }
+
+  .editor-section {
+    gap: 14px;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .address-editor {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .address-editor-heading {
+    align-items: center;
+  }
+
+  .favorite-toggle {
+    min-height: 46px;
+    padding: 8px 10px;
+    border: 1px solid var(--glaze-border);
+    border-radius: 12px;
+    background: var(--glaze-surface-muted);
+  }
+
+  .editor-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .editor-actions > div {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .editor-actions button,
+  .editor-section > .secondary-button,
+  .address-editor-heading .text-button {
+    min-height: 46px;
+  }
+
+  .editor-actions .danger-button {
+    width: 100%;
+  }
+
+  .primary-button {
+    margin-left: 0;
+  }
+}
+
+/* Narrow tablet portrait keeps the tablet navigation pane but avoids cramped two-up cards. */
+@media (min-width: 720px) and (max-width: 839px) {
+  .workspace {
+    grid-template-columns: 192px minmax(0, 1fr);
+  }
+
+  .content {
+    padding: 22px 20px;
+  }
+
+  .content-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-card {
+    grid-template-columns: 1fr;
+  }
+
+  .table-card .contact-row:not(.table-heading) {
+    min-height: 0;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: none;
+  }
+
+  .login-actions .primary-button {
+    min-height: 46px;
+  }
+
+  .detail-card .editor-heading,
+  .editor-card .editor-heading {
+    align-items: flex-start;
+  }
+
+  .editor-grid,
+  .detail-grid,
+  .name-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .editor-section,
+  .address-editor {
+    padding: 16px;
+  }
+}
+
+/* Roomier tablet windows can use the two-up master-list and editor canvases safely. */
+@media (min-width: 840px) and (max-width: 1023px) {
+  .table-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-grid,
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .name-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .detail-card,
+  .editor-card,
+  .login-card {
+    background: var(--glaze-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) and (max-width: 719px) {
+  .contact-navigation {
+    background: var(--glaze-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .detail-card,
+  .editor-card,
+  .login-card,
+  .editor-section,
+  .address-editor,
+  .detail-value,
+  .detail-note,
+  .privacy-note,
+  .favorite-toggle,
+  .account-controls,
+  .backend-status,
+  .empty-state {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
+
+@media (forced-colors: active) and (max-width: 719px) {
+  .contact-navigation {
+    border: 2px solid CanvasText;
+    box-shadow: none;
+  }
+}
