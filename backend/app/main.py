@@ -15,6 +15,7 @@ from .carddav import (
 from .carddav_errors import carddav_http_exception
 from .config import fastapi_documentation_options, get_settings
 from .duplicate_routes import build_duplicate_router
+from .groups import filter_contacts_by_group, summarize_groups
 from .health import carddav_transport_ready
 from .logging_privacy import configure_access_log_privacy
 from .login_throttle import create_login_throttle
@@ -28,6 +29,7 @@ from .models import (
     CardDavStatusResponse,
     ContactDeleteResponse,
     ContactDetail,
+    ContactGroupSummary,
     ContactSummary,
     ContactWriteRequest,
     HealthResponse,
@@ -297,11 +299,31 @@ async def contacts(
         str,
         Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
     ],
+    group: Annotated[str | None, Query(max_length=256)] = None,
 ) -> list[ContactSummary]:
     try:
-        return await _carddav_client(session).list_contacts(address_book_href)
+        values = await _carddav_client(session).list_contacts(address_book_href)
     except CardDavError as exc:
         raise carddav_http_exception(exc) from exc
+    return filter_contacts_by_group(values, group)
+
+
+@app.get("/api/carddav/groups", response_model=list[ContactGroupSummary])
+async def contact_groups(
+    session: AuthenticatedSession,
+    address_book_href: Annotated[
+        str,
+        Query(min_length=1, max_length=MAX_RESOURCE_HREF_CHARS),
+    ],
+) -> list[ContactGroupSummary]:
+    try:
+        values = await _carddav_client(session).list_contacts(address_book_href)
+    except CardDavError as exc:
+        raise carddav_http_exception(exc) from exc
+    return [
+        ContactGroupSummary(name=group.name, count=group.count)
+        for group in summarize_groups(values)
+    ]
 
 
 @app.get("/api/carddav/contact", response_model=ContactDetail)
