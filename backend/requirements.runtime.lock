@@ -1,0 +1,27 @@
+# GoreeCloud Contacts production runtime dependency lock.
+#
+# Keep this file synchronized with backend/pyproject.toml and refresh it only through
+# a reviewed dependency update that passes backend tests, pip-audit, and the production
+# image smoke test. The temporary cryptography advisory exception is documented in CI.
+
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.14.2
+certifi==2026.7.22
+cffi==2.1.1
+click==8.4.2
+cryptography==49.0.0
+fastapi==0.139.2
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.18
+pycparser==3.0
+pydantic==2.13.4
+pydantic-core==2.46.4
+pydantic-settings==2.15.0
+python-dotenv==1.2.2
+starlette==1.6.0
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+uvicorn==0.52.3

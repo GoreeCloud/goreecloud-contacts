@@ -1,13 +1,34 @@
 from datetime import datetime
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, SecretStr, field_validator
+
+
+MAX_RESOURCE_HREF_CHARS = 4096
+MAX_ETAG_CHARS = 1024
+
+ContactEmail = Annotated[str, Field(min_length=1, max_length=320)]
+ContactPhone = Annotated[str, Field(min_length=1, max_length=128)]
+ContactWebsite = Annotated[str, Field(min_length=1, max_length=2048)]
+ContactCategory = Annotated[str, Field(min_length=1, max_length=256)]
 
 
 class HealthResponse(BaseModel):
     status: str
     service: str
     environment: str
+
+
+class ReadinessChecks(BaseModel):
+    session_store: Literal["ok", "unavailable"]
+    carddav: Literal["ok", "not_configured", "unavailable"]
+
+
+class ReadinessResponse(BaseModel):
+    status: Literal["ready", "not_ready"]
+    service: str
+    checks: ReadinessChecks
 
 
 class CardDavStatusResponse(BaseModel):
@@ -77,17 +98,17 @@ class ContactDetail(ContactSummary):
 class ContactWriteRequest(BaseModel):
     formatted_name: str = Field(min_length=1, max_length=512)
     structured_name: StructuredName = Field(default_factory=StructuredName)
-    emails: list[str] = Field(default_factory=list, max_length=50)
-    phones: list[str] = Field(default_factory=list, max_length=50)
+    emails: list[ContactEmail] = Field(default_factory=list, max_length=50)
+    phones: list[ContactPhone] = Field(default_factory=list, max_length=50)
     organization: str | None = Field(default=None, max_length=1024)
     title: str | None = Field(default=None, max_length=1024)
     addresses: list[PostalAddress] = Field(default_factory=list, max_length=20)
     birthday: str | None = Field(default=None, max_length=64)
-    websites: list[str] = Field(default_factory=list, max_length=50)
+    websites: list[ContactWebsite] = Field(default_factory=list, max_length=50)
     note: str | None = Field(default=None, max_length=10000)
-    categories: list[str] = Field(default_factory=list, max_length=100)
+    categories: list[ContactCategory] = Field(default_factory=list, max_length=100)
     favorite: bool = False
-    photo: str | None = Field(default=None, max_length=2_000_000)
+    photo: str | None = Field(default=None, max_length=4096)
 
     @field_validator("photo")
     @classmethod
