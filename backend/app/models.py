@@ -86,6 +86,11 @@ class ContactSummary(BaseModel):
     has_photo: bool = False
 
 
+class ContactGroupSummary(BaseModel):
+    name: str = Field(min_length=1, max_length=256)
+    count: int = Field(ge=1)
+
+
 class ContactDetail(ContactSummary):
     structured_name: StructuredName = Field(default_factory=StructuredName)
     addresses: list[PostalAddress] = Field(default_factory=list)
