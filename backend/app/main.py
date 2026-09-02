@@ -13,6 +13,7 @@ from .carddav import (
     CardDavNotFound,
 )
 from .config import get_settings
+from .duplicate_routes import build_duplicate_router
 from .vcf_routes import build_vcf_router
 from .models import (
     AddressBook,
@@ -31,11 +32,11 @@ session_store = SessionStore(settings.session_ttl_seconds)
 
 app = FastAPI(
     title="GoreeCloud Contacts API",
-    version="0.4.0",
+    version="0.5.0",
     description=(
         "CardDAV API for GoreeCloud Contacts with Radicale-backed authentication, "
-        "per-user collection isolation, expanded vCard contact fields, and conditional "
-        "write protection."
+        "per-user collection isolation, expanded vCard contact fields, raw VCF portability, "
+        "user-reviewed duplicate detection/merge, and conditional write protection."
     ),
 )
 
@@ -49,6 +50,7 @@ app.add_middleware(
 
 
 app.include_router(build_vcf_router(settings, session_store))
+app.include_router(build_duplicate_router(settings, session_store))
 
 
 def _require_session(request: Request) -> SessionRecord:
