@@ -2,6 +2,7 @@
 name = "goreecloud-contacts-backend"
 version = "0.1.0"
 description = "Read-only CardDAV API for the GoreeCloud Contacts web application"
+license = "AGPL-3.0-only"
 requires-python = ">=3.10"
 dependencies = [
   "fastapi[standard]==0.139.2",
