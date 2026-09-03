@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.models import ContactWriteRequest, PostalAddress, StructuredName
+from app.models import ContactWriteRequest, PostalAddress, PublicProfile, StructuredName
 from app.vcard import build_vcard, parse_vcard
 
 
@@ -42,6 +42,7 @@ TITLE:Test Contact
 ADR;TYPE=home:;;123 Test Street;Birmingham;AL;35203;USA
 BDAY:1990-08-12
 URL:https://example.test/profile
+URL;TYPE=profile;X-GOREECLOUD-PLATFORM=github:https://github.com/jordan-example
 NOTE:Line one\\nLine two\\, with comma
 CATEGORIES:Family,Emergency\\,Contacts
 X-GOREECLOUD-FAVORITE:TRUE
@@ -76,11 +77,46 @@ END:VCARD
     ]
     assert contact.birthday == "1990-08-12"
     assert contact.websites == ["https://example.test/profile"]
+    assert contact.public_profiles == [
+        PublicProfile(platform="github", url="https://github.com/jordan-example")
+    ]
     assert contact.note == "Line one\nLine two, with comma"
     assert contact.categories == ["Family", "Emergency,Contacts"]
     assert contact.favorite is True
     assert contact.has_photo is True
     assert contact.photo == "data:image/png;base64,AAAA"
+
+
+def test_profile_metadata_with_invalid_platform_falls_back_to_website() -> None:
+    raw = """BEGIN:VCARD
+VERSION:4.0
+UID:test-invalid-profile-metadata
+FN:Fallback Profile Example
+URL;TYPE=profile;X-GOREECLOUD-PLATFORM=Bad Platform:https://example.test/profile
+END:VCARD
+"""
+
+    contact = parse_vcard(
+        raw,
+        href="/addressbooks/test/invalid-profile.vcf",
+        etag=None,
+    )
+
+    assert contact.public_profiles == []
+    assert contact.websites == ["https://example.test/profile"]
+
+
+def test_public_profile_normalizes_platform_and_requires_http_url() -> None:
+    profile = PublicProfile(
+        platform=" GitHub ",
+        url="  https://github.com/example  ",
+    )
+
+    assert profile.platform == "github"
+    assert profile.url == "https://github.com/example"
+
+    with pytest.raises(ValidationError, match="HTTP or HTTPS"):
+        PublicProfile(platform="github", url="javascript:alert(1)")
 
 
 def test_parse_radicale_vobject_escaped_photo_uri() -> None:
@@ -161,6 +197,10 @@ def test_build_vcard_round_trip() -> None:
         ],
         birthday="1995-02-03",
         websites=["https://example.test/taylor"],
+        public_profiles=[
+            PublicProfile(platform="github", url="https://github.com/taylor-example"),
+            PublicProfile(platform="linkedin", url="https://www.linkedin.com/in/taylor-example"),
+        ],
         note="Synthetic note, with punctuation; and a second line\nfor testing.",
         categories=["Family", "Test,Group"],
         favorite=True,
@@ -171,6 +211,8 @@ def test_build_vcard_round_trip() -> None:
     assert "FN:Taylor\\, Example" in raw
     assert "N:Example;Taylor;;Mx.;" in raw
     assert "ADR;TYPE=home:;;456 Example Ave;Montgomery;AL;36104;USA" in raw
+    assert "URL;TYPE=profile;X-GOREECLOUD-PLATFORM=github:https://github.com/taylor-example" in raw
+    assert "URL;TYPE=profile;X-GOREECLOUD-PLATFORM=linkedin:https://www.linkedin.com/in/taylor-example" in raw
     assert "X-GOREECLOUD-FAVORITE:TRUE" in raw
     assert "PHOTO;VALUE=uri:https://example.test/taylor-photo.png" in raw
 
@@ -191,6 +233,10 @@ def test_build_vcard_round_trip() -> None:
     assert contact.addresses[0].locality == "Montgomery"
     assert contact.birthday == "1995-02-03"
     assert contact.websites == ["https://example.test/taylor"]
+    assert contact.public_profiles == [
+        PublicProfile(platform="github", url="https://github.com/taylor-example"),
+        PublicProfile(platform="linkedin", url="https://www.linkedin.com/in/taylor-example"),
+    ]
     assert contact.note == "Synthetic note, with punctuation; and a second line\nfor testing."
     assert contact.categories == ["Family", "Test,Group"]
     assert contact.favorite is True
