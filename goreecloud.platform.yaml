@@ -1,0 +1,131 @@
+schema_version: "0.2"
+
+component:
+  type: application
+  id: goreecloud-contacts
+  product_name: GoreeCloud Contacts
+  repository: GoreeCloud/goreecloud-contacts
+
+lifecycle: development
+version: "0.5.0"
+
+supported_platforms:
+  - web
+
+api:
+  versions:
+    - "0.5.0"
+  endpoints:
+    - name: application-api
+      url: /api
+      purpose: Same-origin GoreeCloud Contacts application API; production publication is not approved.
+
+platform_systems:
+  manager:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud Manager administrative discovery and operational acceptance have not been implemented and accepted for Contacts.
+  privacy_shield:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - backend/app/logging_privacy.py
+      - backend/app/browser_security.py
+      - docs/security.md
+    notes: Privacy-minimizing source controls exist, but current Privacy Shield integration and application acceptance have not been completed.
+  wardveil_security:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - backend/app/browser_security.py
+      - backend/app/security.py
+      - docs/security.md
+    notes: Security hardening exists in source and CI, but current Wardveil Security integration and application acceptance have not been completed.
+  everkeep:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - docs/production-deployment-runtime.md
+      - docs/security.md
+    notes: CardDAV and VCF portability requirements are documented, but Everkeep backup and restore acceptance has not been completed.
+  glaze_ui:
+    result: applicable-migration-required
+    version: "1.4.0"
+    evidence:
+      - frontend/src/glaze.css
+      - frontend/src/glaze-form-factors.css
+      - frontend/scripts/validate-glaze-ui.mjs
+      - frontend/scripts/validate-form-factors.mjs
+    notes: The current application-wide source remains based on the historical Glaze UI 1.4 implementation. Migration and application-specific acceptance against current Stable GLAZE UI V1.1 / 1.1.0 remain required.
+  mesh:
+    result: applicable-blocked
+    version: null
+    evidence: []
+    notes: GoreeCloud Mesh registration, capability publication, event integration, and runtime acceptance have not been completed for Contacts.
+    capabilities: []
+    dependencies: []
+    published_events: []
+    consumed_events: []
+  identity:
+    result: applicable-blocked
+    version: null
+    evidence:
+      - backend/app/auth.py
+      - backend/app/main.py
+      - docs/security.md
+    notes: Contacts currently uses Radicale-backed application authentication and authorization; accepted GoreeCloud Identity integration has not been completed.
+
+health:
+  health_endpoint: /api/health/live
+  readiness_endpoint: /api/health/ready
+
+continuity:
+  backup:
+    required: true
+    requirements:
+      - Protect the authoritative Radicale/CardDAV contact collections and the production configuration or application state required to restore service.
+  restore:
+    required: true
+    requirements:
+      - Validate restoration of Radicale/CardDAV contacts and required application configuration before Stable or production-family approval.
+  export:
+    required: true
+    requirements:
+      - Preserve raw single-contact and full-address-book VCF export for user-controlled data export.
+  portability:
+    required: true
+    requirements:
+      - Preserve standards-based CardDAV and vCard interoperability plus VCF import and export without creating an application-only contact format.
+
+external_dependencies:
+  - name: Radicale CardDAV service
+    purpose: Authoritative standards-based contact store used for authentication, discovery, reads, and conditional writes.
+    required: true
+    version_constraint: null
+
+compatibility:
+  platform_contract: "0.2"
+  glaze_ui_required: "1.1.0"
+  requires:
+    - goreecloud-platform-contract==0.2
+    - glaze-ui==1.1.0
+  provides: []
+
+evidence:
+  acceptance_tests: []
+  release: []
+
+conformance:
+  status: nonconformant
+  validated_at: null
+  evidence: []
+  blockers:
+    - GoreeCloud Manager integration and acceptance remain blocked.
+    - Privacy Shield integration and application acceptance remain blocked.
+    - Wardveil Security integration and application acceptance remain blocked.
+    - Everkeep backup and restore acceptance remain blocked.
+    - Glaze UI migration and application-specific acceptance against current Stable 1.1.0 remain required.
+    - GoreeCloud Mesh integration and runtime acceptance remain blocked.
+    - GoreeCloud Identity integration and application acceptance remain blocked.
+    - Production and production-family acceptance gates remain incomplete.
