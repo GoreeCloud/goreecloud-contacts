@@ -5,7 +5,14 @@ from dataclasses import dataclass
 import unicodedata
 
 from .duplicate_models import DuplicateCandidate, DuplicateFieldConflict, DuplicateSignal
-from .models import ContactDetail, ContactSummary, ContactWriteRequest, PostalAddress, StructuredName
+from .models import (
+    ContactDetail,
+    ContactSummary,
+    ContactWriteRequest,
+    PostalAddress,
+    PublicProfile,
+    StructuredName,
+)
 from .vcard import build_vcard
 
 
@@ -90,6 +97,22 @@ def _stable_address_union(addresses: Iterable[PostalAddress]) -> list[PostalAddr
             continue
         seen.add(identity)
         result.append(address)
+    return result
+
+
+def _profile_key(profile: PublicProfile) -> tuple[str, str]:
+    return (profile.platform.casefold(), profile.url.casefold())
+
+
+def _stable_profile_union(profiles: Iterable[PublicProfile]) -> list[PublicProfile]:
+    result: list[PublicProfile] = []
+    seen: set[tuple[str, str]] = set()
+    for profile in profiles:
+        identity = _profile_key(profile)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        result.append(profile)
     return result
 
 
@@ -325,6 +348,9 @@ def propose_duplicate_merge(
             [*primary.websites, *duplicate.websites],
             key=lambda value: value.casefold(),
         ),
+        public_profiles=_stable_profile_union(
+            [*primary.public_profiles, *duplicate.public_profiles]
+        ),
         note=note,
         categories=_stable_union(
             [*primary.categories, *duplicate.categories],
@@ -392,6 +418,7 @@ def merge_vcard_preserving_passthrough(
         addresses=payload.addresses,
         birthday=payload.birthday,
         websites=payload.websites,
+        public_profiles=payload.public_profiles,
         note=payload.note,
         categories=payload.categories,
         favorite=payload.favorite,
