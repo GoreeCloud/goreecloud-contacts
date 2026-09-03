@@ -416,6 +416,7 @@ class CardDavClient:
             addresses=payload.addresses,
             birthday=payload.birthday,
             websites=payload.websites,
+            public_profiles=payload.public_profiles,
             note=payload.note,
             categories=payload.categories,
             favorite=payload.favorite,

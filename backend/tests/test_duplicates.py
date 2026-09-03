@@ -3,7 +3,7 @@ from app.duplicates import (
     merge_vcard_preserving_passthrough,
     propose_duplicate_merge,
 )
-from app.models import ContactDetail, ContactSummary
+from app.models import ContactDetail, ContactSummary, PublicProfile
 
 
 def test_duplicate_detection_uses_normalized_email_and_phone() -> None:
@@ -53,6 +53,9 @@ def test_merge_proposal_unions_multi_value_fields_and_reports_scalar_conflicts()
         organization="Primary Org",
         categories=["Family"],
         favorite=False,
+        public_profiles=[
+            PublicProfile(platform="github", url="https://github.com/jordan-example")
+        ],
     )
     duplicate = ContactDetail(
         href="/book/b.vcf",
@@ -64,6 +67,10 @@ def test_merge_proposal_unions_multi_value_fields_and_reports_scalar_conflicts()
         organization="Other Org",
         categories=["family", "Test"],
         favorite=True,
+        public_profiles=[
+            PublicProfile(platform="github", url="https://github.com/jordan-example"),
+            PublicProfile(platform="linkedin", url="https://www.linkedin.com/in/jordan-example"),
+        ],
     )
 
     proposal = propose_duplicate_merge(primary, duplicate)
@@ -74,17 +81,22 @@ def test_merge_proposal_unions_multi_value_fields_and_reports_scalar_conflicts()
     ]
     assert proposal.payload.phones == ["+1-555-0100"]
     assert proposal.payload.categories == ["Family", "Test"]
+    assert proposal.payload.public_profiles == [
+        PublicProfile(platform="github", url="https://github.com/jordan-example"),
+        PublicProfile(platform="linkedin", url="https://www.linkedin.com/in/jordan-example"),
+    ]
     assert proposal.payload.favorite is True
     assert proposal.payload.organization == "Primary Org"
     assert [conflict.field for conflict in proposal.conflicts] == ["organization"]
 
 
-def test_raw_merge_preserves_primary_uid_version_and_unknown_properties_from_both() -> None:
+def test_raw_merge_preserves_primary_uid_version_unknown_properties_and_profiles() -> None:
     primary_raw = """BEGIN:VCARD
 VERSION:3.0
 UID:primary-uid
 FN:Primary Person
 EMAIL:primary@example.test
+URL;TYPE=profile;X-GOREECLOUD-PLATFORM=github:https://github.com/primary-person
 X-PRIMARY:keep-primary
 END:VCARD
 """
@@ -93,6 +105,7 @@ VERSION:4.0
 UID:duplicate-uid
 FN:Duplicate Person
 TEL:+1-555-0100
+URL;TYPE=profile;X-GOREECLOUD-PLATFORM=linkedin:https://www.linkedin.com/in/duplicate-person
 X-DUPLICATE:keep-duplicate
 X-PRIMARY:keep-primary
 END:VCARD
@@ -102,12 +115,21 @@ END:VCARD
         uid="primary-uid",
         formatted_name="Primary Person",
         emails=["primary@example.test"],
+        public_profiles=[
+            PublicProfile(platform="github", url="https://github.com/primary-person")
+        ],
     )
     duplicate = ContactDetail(
         href="/book/b.vcf",
         uid="duplicate-uid",
         formatted_name="Duplicate Person",
         phones=["+1-555-0100"],
+        public_profiles=[
+            PublicProfile(
+                platform="linkedin",
+                url="https://www.linkedin.com/in/duplicate-person",
+            )
+        ],
     )
     proposal = propose_duplicate_merge(primary, duplicate)
 
@@ -123,6 +145,8 @@ END:VCARD
     assert "UID:duplicate-uid" not in merged
     assert "EMAIL:primary@example.test\r\n" in merged
     assert "TEL:+1-555-0100\r\n" in merged
+    assert "URL;TYPE=profile;X-GOREECLOUD-PLATFORM=github:https://github.com/primary-person\r\n" in merged
+    assert "URL;TYPE=profile;X-GOREECLOUD-PLATFORM=linkedin:https://www.linkedin.com/in/duplicate-person\r\n" in merged
     assert "X-PRIMARY:keep-primary\r\n" in merged
     assert "X-DUPLICATE:keep-duplicate\r\n" in merged
     assert merged.count("X-PRIMARY:keep-primary") == 1

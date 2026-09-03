@@ -40,6 +40,11 @@ export type PostalAddress = {
   country: string
 }
 
+export type PublicProfile = {
+  platform: string
+  url: string
+}
+
 export type ContactSummary = {
   href: string
   etag: string | null
@@ -59,6 +64,7 @@ export type ContactDetail = ContactSummary & {
   addresses: PostalAddress[]
   birthday: string | null
   websites: string[]
+  public_profiles: PublicProfile[]
   note: string | null
   photo: string | null
 }
@@ -73,6 +79,7 @@ export type ContactWritePayload = {
   addresses: PostalAddress[]
   birthday: string | null
   websites: string[]
+  public_profiles: PublicProfile[]
   note: string | null
   categories: string[]
   favorite: boolean

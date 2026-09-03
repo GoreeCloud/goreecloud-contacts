@@ -20,10 +20,12 @@ import {
   type ContactWritePayload,
   type Health,
   type PostalAddress,
+  type PublicProfile,
   type StructuredName,
 } from './api.ts'
 
 import VcfTools from './VcfTools.tsx'
+import { PublicProfilesDetail, PublicProfilesEditor } from './PublicProfiles.tsx'
 
 import './milestone2.css'
 
@@ -666,6 +668,8 @@ function ContactDetailCard({
         ))}
       </div>
 
+      <PublicProfilesDetail profiles={contact.public_profiles} />
+
       {contact.note ? (
         <div className="detail-note">
           <strong>Notes</strong>
@@ -724,6 +728,9 @@ function ContactEditor({
   )
   const [birthday, setBirthday] = useState(contact?.birthday ?? '')
   const [websites, setWebsites] = useState(contact?.websites.join('\n') ?? '')
+  const [publicProfiles, setPublicProfiles] = useState<PublicProfile[]>(
+    contact?.public_profiles ?? [],
+  )
   const [note, setNote] = useState(contact?.note ?? '')
   const [categories, setCategories] = useState(contact?.categories.join('\n') ?? '')
   const [favorite, setFavorite] = useState(contact?.favorite ?? false)
@@ -785,6 +792,7 @@ function ContactEditor({
       addresses: addresses.map(trimAddress).filter(addressHasValue),
       birthday: emptyToNull(birthday),
       websites: splitLines(websites),
+      public_profiles: publicProfiles.map(trimPublicProfile),
       note: emptyToNull(note),
       categories: splitLines(categories),
       favorite,
@@ -961,6 +969,11 @@ function ContactEditor({
             />
           </label>
         </div>
+      </fieldset>
+
+      <fieldset className="editor-section">
+        <legend>Public profiles</legend>
+        <PublicProfilesEditor profiles={publicProfiles} onChange={setPublicProfiles} />
       </fieldset>
 
       <fieldset className="editor-section">
@@ -1169,6 +1182,13 @@ function trimAddress(value: PostalAddress): PostalAddress {
     region: value.region.trim(),
     postal_code: value.postal_code.trim(),
     country: value.country.trim(),
+  }
+}
+
+function trimPublicProfile(value: PublicProfile): PublicProfile {
+  return {
+    platform: value.platform.trim().toLowerCase(),
+    url: value.url.trim(),
   }
 }
 

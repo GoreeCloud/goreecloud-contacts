@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from typing import Annotated, Literal
 from urllib.parse import urlparse
 
@@ -12,6 +13,8 @@ ContactEmail = Annotated[str, Field(min_length=1, max_length=320)]
 ContactPhone = Annotated[str, Field(min_length=1, max_length=128)]
 ContactWebsite = Annotated[str, Field(min_length=1, max_length=2048)]
 ContactCategory = Annotated[str, Field(min_length=1, max_length=256)]
+
+_PROFILE_PLATFORM_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
 
 class HealthResponse(BaseModel):
@@ -72,6 +75,33 @@ class PostalAddress(BaseModel):
     country: str = Field(default="", max_length=512)
 
 
+class PublicProfile(BaseModel):
+    """A user-entered public profile carried in a portable vCard URL property."""
+
+    platform: str = Field(min_length=1, max_length=64)
+    url: str = Field(min_length=1, max_length=2048)
+
+    @field_validator("platform")
+    @classmethod
+    def normalize_platform(cls, value: str) -> str:
+        normalized = value.strip().casefold()
+        if not _PROFILE_PLATFORM_RE.fullmatch(normalized):
+            raise ValueError(
+                "Public profile platform must be a lowercase-compatible slug using letters, "
+                "numbers, and hyphens."
+            )
+        return normalized
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        normalized = value.strip()
+        parsed = urlparse(normalized)
+        if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("Public profile URLs must use HTTP or HTTPS.")
+        return normalized
+
+
 class ContactSummary(BaseModel):
     href: str
     etag: str | None = None
@@ -96,6 +126,7 @@ class ContactDetail(ContactSummary):
     addresses: list[PostalAddress] = Field(default_factory=list)
     birthday: str | None = None
     websites: list[str] = Field(default_factory=list)
+    public_profiles: list[PublicProfile] = Field(default_factory=list)
     note: str | None = None
     photo: str | None = None
 
@@ -110,6 +141,7 @@ class ContactWriteRequest(BaseModel):
     addresses: list[PostalAddress] = Field(default_factory=list, max_length=20)
     birthday: str | None = Field(default=None, max_length=64)
     websites: list[ContactWebsite] = Field(default_factory=list, max_length=50)
+    public_profiles: list[PublicProfile] = Field(default_factory=list, max_length=50)
     note: str | None = Field(default=None, max_length=10000)
     categories: list[ContactCategory] = Field(default_factory=list, max_length=100)
     favorite: bool = False
