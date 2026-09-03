@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'react'
-
 import type { PublicProfile } from './api.ts'
 
 import './public-profiles.css'
@@ -85,7 +83,7 @@ const PLATFORM_BY_ID = new Map(
 )
 
 export function platformLabel(platform: string): string {
-  return PLATFORM_BY_ID.get(platform.casefold?.() ?? platform.toLowerCase())?.label ?? humanizePlatform(platform)
+  return PLATFORM_BY_ID.get(platform.trim().toLowerCase())?.label ?? humanizePlatform(platform)
 }
 
 function humanizePlatform(platform: string): string {
@@ -275,10 +273,4 @@ export function PublicProfilesEditor({
   )
 }
 
-// Keep the component free of remote assets. This is intentionally exported for
-// future native mappings and UI tests that need to assert supported local marks.
 export const PUBLIC_PROFILE_PLATFORM_IDS = PLATFORM_IDENTITIES.map((item) => item.id)
-
-// CSSProperties is referenced so future tokenized mark styling can remain typed
-// without introducing a remote icon component dependency.
-export type PublicProfileIconStyle = CSSProperties
