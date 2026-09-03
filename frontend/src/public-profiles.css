@@ -1,0 +1,226 @@
+.public-profiles-detail,
+.public-profiles-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.public-profiles-detail {
+  padding-top: 18px;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.public-profiles-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.public-profiles-heading-row h4 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.public-profile-count {
+  min-width: 32px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.public-profile-list,
+.public-profile-editor-list {
+  display: grid;
+  gap: 10px;
+}
+
+.public-profile-link {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  color: inherit;
+  text-decoration: none;
+}
+
+.public-profile-link:hover {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.public-profile-link:focus-visible,
+.public-profile-remove:focus-visible,
+.public-profile-add:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 3px;
+}
+
+.public-profile-mark {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 38px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+
+.public-profile-icon {
+  width: 21px;
+  height: 21px;
+  fill: currentColor;
+}
+
+.public-profile-text-mark {
+  display: grid;
+  place-items: center;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.public-profile-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.public-profile-copy strong,
+.public-profile-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-profile-copy strong {
+  font-size: 0.9rem;
+}
+
+.public-profile-copy span {
+  opacity: 0.7;
+  font-size: 0.78rem;
+}
+
+.public-profile-open {
+  justify-self: end;
+  opacity: 0.62;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.public-profile-editor-intro {
+  max-width: 760px;
+  color: inherit;
+  opacity: 0.72;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.public-profile-editor-intro p,
+.public-profile-empty {
+  margin: 0;
+}
+
+.public-profile-editor-row {
+  display: grid;
+  grid-template-columns: 42px minmax(128px, 0.55fr) minmax(220px, 1.45fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 2%, transparent);
+}
+
+.public-profile-editor-row .public-profile-mark {
+  align-self: end;
+  margin-bottom: 2px;
+}
+
+.public-profile-platform-field,
+.public-profile-url-field {
+  min-width: 0;
+}
+
+.public-profile-remove {
+  min-height: 48px;
+  align-self: end;
+}
+
+.public-profile-add {
+  min-height: 48px;
+  justify-self: start;
+}
+
+@media (max-width: 760px) {
+  .public-profile-editor-row {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+
+  .public-profile-url-field {
+    grid-column: 2 / -1;
+  }
+
+  .public-profile-remove {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .public-profile-editor-row {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .public-profile-platform-field,
+  .public-profile-url-field,
+  .public-profile-remove {
+    grid-column: 1 / -1;
+  }
+
+  .public-profile-editor-row .public-profile-mark {
+    grid-column: 1;
+  }
+
+  .public-profile-link {
+    grid-template-columns: 38px minmax(0, 1fr) 20px;
+    padding-inline: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .public-profile-link {
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .public-profile-link,
+  .public-profile-mark,
+  .public-profile-editor-row,
+  .public-profile-count {
+    border-width: 2px;
+  }
+}
+
+@media (forced-colors: active) {
+  .public-profile-link,
+  .public-profile-mark,
+  .public-profile-editor-row,
+  .public-profile-count {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  .public-profile-icon {
+    fill: CanvasText;
+  }
+}
