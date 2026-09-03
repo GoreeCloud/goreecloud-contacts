@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import re
 
-from .models import ContactDetail, PostalAddress, StructuredName
+from .models import ContactDetail, PostalAddress, PublicProfile, StructuredName
 
 
 _PARAM_TOKEN = re.compile(r"^[A-Za-z0-9-]+$")
+_PROFILE_PLATFORM_PARAM = "X-GOREECLOUD-PLATFORM"
 
 
 def _unfold(raw: str) -> list[str]:
@@ -149,7 +150,7 @@ def _photo_uri_compat(raw_value: str) -> str:
     RFC 6350 PHOTO values are URIs, so the semicolon separating a data URI's
     media type from the ``base64`` marker must not be backslash-escaped.
     Some Radicale/vobject combinations rewrite it as ``\\;`` (and may escape
-    the following comma).  GoreeCloud continues to emit standards-compliant
+    the following comma). GoreeCloud continues to emit standards-compliant
     vCard 4.0 and tolerates only this narrow server-side rewrite when reading.
     """
 
@@ -166,6 +167,22 @@ def _photo_uri_compat(raw_value: str) -> str:
     )
 
 
+def _public_profile(
+    raw_value: str,
+    params: dict[str, list[str]],
+) -> PublicProfile | None:
+    platform_values = params.get(_PROFILE_PLATFORM_PARAM, [])
+    if not platform_values:
+        return None
+
+    try:
+        return PublicProfile(platform=platform_values[0], url=raw_value)
+    except ValueError:
+        # Invalid or unfamiliar profile metadata must not hide the URL from the
+        # user. Falling back to an ordinary website preserves readable data.
+        return None
+
+
 def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactDetail:
     uid: str | None = None
     formatted_name: str | None = None
@@ -177,6 +194,7 @@ def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactDetail:
     addresses: list[PostalAddress] = []
     birthday: str | None = None
     websites: list[str] = []
+    public_profiles: list[PublicProfile] = []
     note: str | None = None
     categories: list[str] = []
     favorite = False
@@ -208,7 +226,11 @@ def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactDetail:
         elif name == "BDAY" and not birthday:
             birthday = raw_value or None
         elif name == "URL" and raw_value:
-            websites.append(raw_value)
+            profile = _public_profile(raw_value, params)
+            if profile is None:
+                websites.append(raw_value)
+            else:
+                public_profiles.append(profile)
         elif name == "NOTE" and not note:
             note = _unescape(raw_value) or None
         elif name == "CATEGORIES" and raw_value:
@@ -239,6 +261,7 @@ def parse_vcard(raw: str, *, href: str, etag: str | None) -> ContactDetail:
         addresses=addresses,
         birthday=birthday,
         websites=websites,
+        public_profiles=public_profiles,
         note=note,
         categories=categories,
         favorite=favorite,
@@ -260,6 +283,16 @@ def _uri_value(value: str) -> str:
     return normalized
 
 
+def _public_profile_property(profile: PublicProfile) -> str:
+    platform = profile.platform.strip().casefold()
+    if not _PARAM_TOKEN.fullmatch(platform):
+        raise ValueError("Public profile platform is not safe for a vCard parameter.")
+    return (
+        f"URL;TYPE=profile;{_PROFILE_PLATFORM_PARAM}={platform}:"
+        f"{_uri_value(profile.url)}"
+    )
+
+
 def build_vcard(
     *,
     uid: str,
@@ -272,6 +305,7 @@ def build_vcard(
     addresses: list[PostalAddress] | None = None,
     birthday: str | None = None,
     websites: list[str] | None = None,
+    public_profiles: list[PublicProfile] | None = None,
     note: str | None = None,
     categories: list[str] | None = None,
     favorite: bool = False,
@@ -280,6 +314,7 @@ def build_vcard(
     structured_name = structured_name or StructuredName()
     addresses = addresses or []
     websites = websites or []
+    public_profiles = public_profiles or []
     categories = categories or []
 
     lines = [
@@ -325,6 +360,7 @@ def build_vcard(
     if birthday and birthday.strip():
         lines.append(f"BDAY:{_uri_value(birthday)}")
     lines.extend(f"URL:{_uri_value(value)}" for value in websites if value.strip())
+    lines.extend(_public_profile_property(profile) for profile in public_profiles)
     if note and note.strip():
         lines.append(f"NOTE:{_escape(note.strip())}")
 
