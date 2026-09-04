@@ -85,6 +85,12 @@ const requirements = [
     message: 'The V1.1 migration must include explicit Light, Dark, and Deep Dark appearance mappings.',
   },
   {
+    ok: glazeV11Source.includes('@media (prefers-color-scheme: dark)') &&
+      glazeV11Source.includes('html[data-glaze-version="1.1"]:not([data-glz-appearance])') &&
+      !glazeV11Source.includes('html[data-glaze-version="1.1"]:not([data-glz-appearance="light"])'),
+    message: 'System dark fallback must apply only when no explicit appearance is selected so explicit Deep Dark remains authoritative.',
+  },
+  {
     ok: glazeV11Source.includes('@media (prefers-reduced-transparency: reduce)') &&
       glazeV11Source.includes('@media (prefers-contrast: more)') &&
       glazeV11Source.includes('@media (forced-colors: active)'),
