@@ -387,7 +387,11 @@ def validate_layout(state: dict[str, Any], scene: str, family: str) -> None:
     require(float(content.get("left", 0)) >= float(sidebar.get("right", 0)) - 2, f"{scene}: content must remain beside the navigation pane")
 
     if family == "tablet":
-        require(abs(first_grid_column_px(state.get("workspaceColumns")) - 204.0) <= 1.0, f"{scene}: tablet navigation rail must resolve to 204px")
+        expected_rail = 192.0 if scene == "narrow-tablet" else 204.0
+        require(
+            abs(first_grid_column_px(state.get("workspaceColumns")) - expected_rail) <= 1.0,
+            f"{scene}: tablet navigation rail must resolve to {expected_rail:.0f}px",
+        )
         require(state.get("sidebarDisplay") == "flex", f"{scene}: tablet navigation must use the touch-first pane composition")
         require(state.get("sidebarPosition") == "sticky", f"{scene}: tablet navigation pane must remain sticky")
         require(state.get("tableHeadingDisplay") == "none", f"{scene}: tablet contacts must use card presentation")
