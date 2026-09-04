@@ -167,7 +167,7 @@ html[data-glaze-version="1.1"][data-glz-appearance="deep-dark"] {
 }
 
 @media (prefers-color-scheme: dark) {
-  html[data-glaze-version="1.1"]:not([data-glz-appearance="light"]) {
+  html[data-glaze-version="1.1"]:not([data-glz-appearance]) {
     --glz1-canvas: #0b0d11;
     --glz1-base: #12151b;
     --glz1-raised: #1b2028;
