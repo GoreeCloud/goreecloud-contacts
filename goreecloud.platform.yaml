@@ -51,13 +51,17 @@ platform_systems:
     notes: CardDAV and VCF portability requirements are documented, but Everkeep backup and restore acceptance has not been completed.
   glaze_ui:
     result: applicable-migration-required
-    version: "1.4.0"
+    version: "1.1.0"
     evidence:
-      - frontend/src/glaze.css
+      - frontend/index.html
+      - frontend/src/glaze-v1.1.css
+      - frontend/src/glaze-accessibility.css
       - frontend/src/glaze-form-factors.css
+      - frontend/src/glaze-form-factor-refinements.css
       - frontend/scripts/validate-glaze-ui.mjs
       - frontend/scripts/validate-form-factors.mjs
-    notes: The current application-wide source remains based on the historical Glaze UI 1.4 implementation. Migration and application-specific acceptance against current Stable GLAZE UI V1.1 / 1.1.0 remain required.
+      - docs/glaze-ui-v1.1-migration.md
+    notes: Development source migration is currently based on immutable Stable GLAZE UI V1.1 / 1.1.0 authority 15cc76d2bcd4065552dc31c77145b63f34d9e7b2. That Stable release now has a known import-closure defect, and corrective 1.1.1 remains an unmerged Release Candidate. Contacts must re-pin to a corrected immutable Stable release and repeat application-specific source, rendered, accessibility, representative-device, and production acceptance before Glaze conformance can advance.
   mesh:
     result: applicable-blocked
     version: null
@@ -125,7 +129,7 @@ conformance:
     - Privacy Shield integration and application acceptance remain blocked.
     - Wardveil Security integration and application acceptance remain blocked.
     - Everkeep backup and restore acceptance remain blocked.
-    - Glaze UI migration and application-specific acceptance against current Stable 1.1.0 remain required.
+    - Immutable GLAZE UI 1.1.0 has a known import-closure defect; Contacts requires a corrected Stable re-pin plus fresh application-specific rendered, accessibility, representative-device, and production acceptance.
     - GoreeCloud Mesh integration and runtime acceptance remain blocked.
     - GoreeCloud Identity integration and application acceptance remain blocked.
     - Production and production-family acceptance gates remain incomplete.

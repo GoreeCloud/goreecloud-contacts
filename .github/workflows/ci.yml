@@ -253,6 +253,23 @@ jobs:
           docker exec contacts-runtime python -c \
             'from app.main import login_throttle; d = login_throttle.check("ci-runtime-shared-throttle", now=102.0); assert not d.allowed and d.retry_after_seconds == 58'
 
+      - name: Compile rendered browser validator
+        run: python3 -m py_compile frontend/scripts/validate-rendered-browser.py
+
+      - name: Validate rendered Contacts browser surface
+        env:
+          CONTACTS_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 frontend/scripts/validate-rendered-browser.py
+
+      - name: Upload rendered Contacts browser evidence
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: contacts-rendered-browser-${{ github.event.pull_request.head.sha || github.sha }}
+          path: .artifacts/contacts-rendered/*
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Show runtime logs
         if: always()
         run: docker logs contacts-runtime 2>&1 || true
