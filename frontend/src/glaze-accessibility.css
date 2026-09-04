@@ -15,7 +15,7 @@
 }
 
 .skip-link:focus-visible {
-  transform: translateY(0);
+  transform: none;
 }
 
 /* Keep keyboard focus context visible while moving through dense task groups. */
