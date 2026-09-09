@@ -159,6 +159,9 @@
   .login-card,
   .vcf-tools,
   .duplicate-tools {
+    /* Preserve the source-level Glaze fallback while the important declarations
+       prevent later migration layers from reintroducing measurable motion. */
+    transition: none;
     transition: none !important;
     transition-duration: 0s !important;
     transition-delay: 0s !important;
