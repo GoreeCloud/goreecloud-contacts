@@ -151,7 +151,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skip-link,
+  .skip-link {
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+
   .contact-row:not(.table-heading),
   .editor-section,
   .address-editor,
