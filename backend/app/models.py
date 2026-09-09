@@ -99,6 +99,8 @@ class PublicProfile(BaseModel):
         parsed = urlparse(normalized)
         if parsed.scheme.casefold() not in {"http", "https"} or not parsed.netloc:
             raise ValueError("Public profile URLs must use HTTP or HTTPS.")
+        if parsed.username is not None or parsed.password is not None:
+            raise ValueError("Public profile URLs may not contain embedded credentials.")
         return normalized
 
 
