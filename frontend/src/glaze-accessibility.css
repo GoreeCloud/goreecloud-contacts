@@ -151,6 +151,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .skip-link,
   .contact-row:not(.table-heading),
   .editor-section,
   .address-editor,
