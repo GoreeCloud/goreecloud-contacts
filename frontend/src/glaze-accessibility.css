@@ -151,12 +151,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skip-link {
-    transition: none !important;
-    transition-duration: 0s !important;
-    transition-delay: 0s !important;
-  }
-
+  .skip-link,
   .contact-row:not(.table-heading),
   .editor-section,
   .address-editor,
@@ -164,6 +159,8 @@
   .login-card,
   .vcf-tools,
   .duplicate-tools {
-    transition: none;
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
   }
 }
