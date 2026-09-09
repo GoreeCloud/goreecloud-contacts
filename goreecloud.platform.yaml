@@ -61,7 +61,7 @@ platform_systems:
       - frontend/scripts/validate-glaze-ui.mjs
       - frontend/scripts/validate-form-factors.mjs
       - docs/glaze-ui-v1.1-migration.md
-    notes: Development source migration is currently based on immutable Stable GLAZE UI V1.1 / 1.1.0 authority 15cc76d2bcd4065552dc31c77145b63f34d9e7b2. That Stable release now has a known import-closure defect, and corrective 1.1.1 remains an unmerged Release Candidate. Contacts must re-pin to a corrected immutable Stable release and repeat application-specific source, rendered, accessibility, representative-device, and production acceptance before Glaze conformance can advance.
+    notes: The active Contacts source migration remains GLAZE UI V1.1 / 1.1.0. The current required GoreeCloud consumer target is GLAZE UI V1.3 / 1.3.0 Adaptive Resonance, released as the current Official/Stable/consumer-eligible shared target on 2026-09-08. Contacts must migrate deliberately and repeat application-specific source, rendered, accessibility, supported-form-factor, representative-device/browser, rollback, release, and production acceptance before Glaze conformance may advance.
   mesh:
     result: applicable-blocked
     version: null
@@ -110,10 +110,10 @@ external_dependencies:
 
 compatibility:
   platform_contract: "0.2"
-  glaze_ui_required: "1.1.0"
+  glaze_ui_required: "1.3.0"
   requires:
     - goreecloud-platform-contract==0.2
-    - glaze-ui==1.1.0
+    - glaze-ui==1.3.0
   provides: []
 
 evidence:
@@ -125,11 +125,11 @@ conformance:
   validated_at: null
   evidence: []
   blockers:
+    - Active Contacts source remains on the GLAZE UI 1.1.0 migration and requires deliberate migration to current Stable 1.3.0 plus fresh application-specific acceptance.
     - GoreeCloud Manager integration and acceptance remain blocked.
     - Privacy Shield integration and application acceptance remain blocked.
     - Wardveil Security integration and application acceptance remain blocked.
     - Everkeep backup and restore acceptance remain blocked.
-    - Immutable GLAZE UI 1.1.0 has a known import-closure defect; Contacts requires a corrected Stable re-pin plus fresh application-specific rendered, accessibility, representative-device, and production acceptance.
     - GoreeCloud Mesh integration and runtime acceptance remain blocked.
     - GoreeCloud Identity integration and application acceptance remain blocked.
     - Production and production-family acceptance gates remain incomplete.
