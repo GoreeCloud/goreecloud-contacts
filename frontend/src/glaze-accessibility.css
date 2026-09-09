@@ -12,11 +12,10 @@
   font-weight: 750;
   text-decoration: none;
   transform: translateY(calc(-100% - 24px));
-  transition: transform 140ms ease;
 }
 
 .skip-link:focus-visible {
-  transform: translateY(0);
+  transform: none;
 }
 
 /* Keep keyboard focus context visible while moving through dense task groups. */
@@ -160,6 +159,11 @@
   .login-card,
   .vcf-tools,
   .duplicate-tools {
+    /* Preserve the source-level Glaze fallback while the important declarations
+       prevent later migration layers from reintroducing measurable motion. */
     transition: none;
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
   }
 }

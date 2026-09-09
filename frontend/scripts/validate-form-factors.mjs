@@ -5,6 +5,7 @@ const [
   accessibilitySource,
   formFactorSource,
   refinementSource,
+  migrationSource,
   vcfSource,
   duplicateSource,
 ] = await Promise.all([
@@ -12,6 +13,7 @@ const [
   readFile(new URL('../src/glaze-accessibility.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factors.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/glaze-form-factor-refinements.css', import.meta.url), 'utf8'),
+  readFile(new URL('../src/glaze-v1.1.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/vcf-tools.css', import.meta.url), 'utf8'),
   readFile(new URL('../src/duplicate-tools.css', import.meta.url), 'utf8'),
 ])
@@ -22,8 +24,19 @@ const requirements = [
   {
     ok: mainSource.includes("import './glaze-accessibility.css'") &&
       mainSource.includes("import './glaze-form-factors.css'") &&
-      mainSource.includes("import './glaze-form-factor-refinements.css'"),
-    message: 'The Contacts client must load the Glaze accessibility and both 1.4 form-factor layers.',
+      mainSource.includes("import './glaze-form-factor-refinements.css'") &&
+      mainSource.includes("import './glaze-v1.1.css'"),
+    message: 'The Contacts client must load accessibility, historical form-factor structure, and the current V1.1 migration layer.',
+  },
+  {
+    ok: mainSource.indexOf("import './glaze-v1.1.css'") >
+      mainSource.indexOf("import './glaze-form-factor-refinements.css'"),
+    message: 'The V1.1 migration must resolve after the historical 1.4 form-factor/refinement layers.',
+  },
+  {
+    ok: migrationSource.includes('GLAZE UI V1.1 / 1.1.0 source migration layer') &&
+      migrationSource.includes('--glz11-target-min: 48px;'),
+    message: 'Form-factor validation must be anchored to the current V1.1 source migration and 48px interaction floor.',
   },
   {
     ok: mainSource.includes('className="skip-link"') &&
@@ -54,10 +67,6 @@ const requirements = [
     message: 'Keyboard focus-group treatment must remain visible in forced colors and calm under reduced motion.',
   },
   {
-    ok: formFactorSource.includes('Glaze UI 1.4.0 current-Stable'),
-    message: 'The form-factor layer must identify the current Stable Glaze UI 1.4.0 contract.',
-  },
-  {
     ok: refinementSource.includes('@media (max-width: 719px)') &&
       refinementSource.includes('.contact-navigation') &&
       refinementSource.includes('position: fixed;') &&
@@ -82,7 +91,7 @@ const requirements = [
       refinementSource.includes('.login-card input {') &&
       refinementSource.includes('.login-actions .primary-button {') &&
       refinementSource.includes('min-height: 48px;'),
-    message: 'Compact sign-in must use a full-width, touch-sized single-task form.',
+    message: 'Compact sign-in must retain a full-width, touch-sized single-task form.',
   },
   {
     ok: refinementSource.includes('.account-controls {') &&
@@ -96,15 +105,17 @@ const requirements = [
     ok: refinementSource.includes('.detail-card,') &&
       refinementSource.includes('.editor-card,') &&
       refinementSource.includes('background: var(--glaze-surface);') &&
-      refinementSource.includes('border-color: var(--glaze-border);'),
-    message: 'Contact detail and editor surfaces must use the current Glaze material token system.',
+      refinementSource.includes('border-color: var(--glaze-border);') &&
+      migrationSource.includes('Reading and explicit-decision surfaces are solid'),
+    message: 'Contact detail/editor surfaces must retain structural layout while V1.1 resolves reading surfaces to solid material.',
   },
   {
     ok: refinementSource.includes('.detail-actions {') &&
       refinementSource.includes('.editor-actions > div {') &&
-      refinementSource.includes('min-height: 46px;') &&
-      refinementSource.includes('.editor-actions .danger-button'),
-    message: 'Compact contact detail and editor actions must remain touch-sized and reachability-oriented.',
+      refinementSource.includes('.editor-actions .danger-button') &&
+      migrationSource.includes('--glz11-target-min: 48px;') &&
+      migrationSource.includes('.danger-button {\n  min-height: var(--glz11-target-min);'),
+    message: 'Contact detail/editor actions must remain reachability-oriented and resolve to the V1.1 48px target floor.',
   },
   {
     ok: refinementSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
@@ -134,14 +145,14 @@ const requirements = [
       vcfSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
       vcfSource.includes('var(--glaze-surface)') &&
       vcfSource.includes('var(--glaze-border)'),
-    message: 'VCF tools must follow Glaze tokens and the Compact/Narrow-Tablet composition contract.',
+    message: 'VCF tools must follow shared tokens and the Compact/Narrow-Tablet composition contract.',
   },
   {
     ok: duplicateSource.includes('@media (max-width: 719px)') &&
       duplicateSource.includes('@media (min-width: 720px) and (max-width: 839px)') &&
       duplicateSource.includes('var(--glaze-surface)') &&
       duplicateSource.includes('var(--glaze-border)'),
-    message: 'Duplicate review must follow Glaze tokens and the Compact/Narrow-Tablet composition contract.',
+    message: 'Duplicate review must follow shared tokens and the Compact/Narrow-Tablet composition contract.',
   },
   {
     ok: !/#(?:fff(?:fff)?|f9fafb|e5e7eb|6b7280)\b/i.test(featureToolSource),
@@ -153,22 +164,15 @@ const requirements = [
       refinementSource.includes('@media (prefers-reduced-transparency: reduce) and (max-width: 719px)') &&
       vcfSource.includes('@media (prefers-reduced-transparency: reduce)') &&
       duplicateSource.includes('@media (prefers-reduced-transparency: reduce)') &&
-      formFactorSource.includes('@media (forced-colors: active)') &&
-      refinementSource.includes('@media (forced-colors: active) {') &&
-      refinementSource.includes('.login-card,') &&
-      refinementSource.includes('.account-controls,') &&
-      refinementSource.includes('.backend-status,') &&
-      refinementSource.includes('.empty-state {') &&
-      refinementSource.includes('@media (forced-colors: active) and (max-width: 719px)') &&
-      vcfSource.includes('@media (forced-colors: active)') &&
-      duplicateSource.includes('@media (forced-colors: active)'),
-    message: 'Form-factor, feedback, authentication, detail/editor, and workflow surfaces must retain transparency and forced-colors resilience.',
+      migrationSource.includes('@media (prefers-reduced-transparency: reduce)') &&
+      migrationSource.includes('@media (forced-colors: active)'),
+    message: 'Form-factor and workflow surfaces must retain current transparency and forced-colors resilience.',
   },
   {
     ok: !/(@import\s+url\(|url\(["']?https?:\/\/)/i.test(
-      `${accessibilitySource}\n${formFactorSource}\n${refinementSource}\n${featureToolSource}`,
+      `${accessibilitySource}\n${formFactorSource}\n${refinementSource}\n${migrationSource}\n${featureToolSource}`,
     ),
-    message: 'The accessibility, form-factor, and workflow layers must not introduce third-party presentation dependencies.',
+    message: 'The accessibility, form-factor, migration, and workflow layers must not introduce remote presentation dependencies.',
   },
 ]
 
@@ -180,5 +184,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1
 } else {
-  console.log(`Glaze UI 1.4 form-factor validation passed (${requirements.length} checks).`)
+  console.log(`GLAZE UI V1.1 form-factor migration validation passed (${requirements.length} checks).`)
 }

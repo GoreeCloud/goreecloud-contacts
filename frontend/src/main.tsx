@@ -7,6 +7,7 @@ import './glaze.css'
 import './glaze-accessibility.css'
 import './glaze-form-factors.css'
 import './glaze-form-factor-refinements.css'
+import './glaze-v1.1.css'
 
 const root = document.getElementById('root')
 
