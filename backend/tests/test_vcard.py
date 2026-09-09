@@ -106,7 +106,7 @@ END:VCARD
     assert contact.websites == ["https://example.test/profile"]
 
 
-def test_public_profile_normalizes_platform_and_requires_http_url() -> None:
+def test_public_profile_normalizes_platform_and_requires_safe_http_url() -> None:
     profile = PublicProfile(
         platform=" GitHub ",
         url="  https://github.com/example  ",
@@ -117,6 +117,12 @@ def test_public_profile_normalizes_platform_and_requires_http_url() -> None:
 
     with pytest.raises(ValidationError, match="HTTP or HTTPS"):
         PublicProfile(platform="github", url="javascript:alert(1)")
+
+    with pytest.raises(ValidationError, match="embedded credentials"):
+        PublicProfile(platform="github", url="https://user:secret@github.com/example")
+
+    with pytest.raises(ValidationError, match="embedded credentials"):
+        PublicProfile(platform="github", url="https://user@github.com/example")
 
 
 def test_parse_radicale_vobject_escaped_photo_uri() -> None:
