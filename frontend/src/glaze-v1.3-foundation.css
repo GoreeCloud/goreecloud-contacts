@@ -1,0 +1,152 @@
+/*
+ * GoreeCloud Contacts — GLAZE UI V1.3 / 1.3.0 Adaptive Resonance foundation.
+ *
+ * Stable Glaze authority:
+ *   GoreeCloud/goreecloud-glaze-ui@fc7cc91d2eace8da2371371c2855c24cbcb326a1
+ *   GLAZE UI V1.3 — Adaptive Resonance / 1.3.0
+ *
+ * This is a bounded migration tranche. Contacts deliberately retains its active
+ * data-glaze-version="1.1" runtime contract until the V1.3 root/version switch and
+ * fresh whole-shell rendered acceptance are completed on one exact revision.
+ *
+ * V1.3 inherits the V1.2 neutral/frosted rendering foundation. This layer prepares
+ * Contacts-owned compatibility variables for that material model without granting
+ * wallpaper/environment sampling, remote dynamic color, contextual intelligence,
+ * Personalization persistence, System Shell authority, or product-truth authority.
+ */
+
+html[data-glaze-target-version="1.3"] {
+  /* Inherited V1.2 Stable material foundation used by the V1.3 Stable web entrypoint. */
+  --glz13-frost-white: #f4f8fa;
+  --glz13-crystal-white: #fbfdfe;
+  --glz13-ice-blue: #dcecf6;
+  --glz13-glacier-blue: #8fc4e8;
+  --glz13-clear-sky-blue: #68aee0;
+  --glz13-cloud-gray: #dce3e8;
+  --glz13-slate-gray: #7e8d99;
+  --glz13-cool-graphite: #151c22;
+  --glz13-deep-graphite: #0e1419;
+  --glz13-blue-black: #070c11;
+
+  --glz13-base-glass: rgba(255, 255, 255, 0.58);
+  --glz13-raised-glass: rgba(255, 255, 255, 0.72);
+  --glz13-overlay-glass: rgba(250, 250, 250, 0.82);
+  --glz13-panel-glass: rgba(255, 255, 255, 0.76);
+  --glz13-specular-border: rgba(255, 255, 255, 0.52);
+  --glz13-structural-border: rgba(80, 80, 80, 0.10);
+  --glz13-shadow-soft: 0 14px 38px rgba(0, 0, 0, 0.11);
+  --glz13-shadow-float: 0 28px 76px rgba(0, 0, 0, 0.16);
+  --glz13-blur-soft: 24px;
+
+  /* Contacts compatibility projection. Protected semantic roles stay authoritative. */
+  --glaze-surface: var(--glz13-panel-glass);
+  --glaze-surface-solid: var(--glz13-crystal-white);
+  --glaze-surface-muted: color-mix(in srgb, var(--glz13-frost-white) 88%, var(--glz13-ice-blue) 12%);
+  --glaze-surface-strong: var(--glz13-crystal-white);
+  --glaze-text: var(--glz13-cool-graphite);
+  --glaze-muted: var(--glz13-slate-gray);
+  --glaze-subtle: color-mix(in srgb, var(--glz13-slate-gray) 82%, var(--glz13-cool-graphite) 18%);
+  --glaze-border: var(--glz13-structural-border);
+  --glaze-border-strong: color-mix(in srgb, var(--glz13-structural-border) 72%, var(--glz13-clear-sky-blue) 28%);
+  --glaze-accent: var(--glz13-clear-sky-blue);
+  --glaze-accent-strong: color-mix(in srgb, var(--glz13-clear-sky-blue) 78%, var(--glz13-cool-graphite) 22%);
+  --glaze-accent-soft: color-mix(in srgb, var(--glz13-clear-sky-blue) 12%, transparent);
+  --glaze-shadow-sm: var(--glz13-shadow-soft);
+  --glaze-shadow-md: var(--glz13-shadow-float);
+  --glaze-blur: var(--glz13-blur-soft);
+
+  /* Do not remap success/warning/critical truth into atmospheric color. */
+  --glaze-success: var(--glz1-success);
+  --glaze-success-soft: color-mix(in srgb, var(--glz1-success) 12%, transparent);
+  --glaze-warning: var(--glz1-warning);
+  --glaze-danger: var(--glz1-critical);
+  --glaze-danger-soft: color-mix(in srgb, var(--glz1-critical) 10%, transparent);
+  --glaze-focus: var(--glz1-focus);
+
+  /* Retain current touch geometry until the V1.3 root switch is independently accepted. */
+  --glz13-target-min: var(--glz11-target-min, 48px);
+  --glz13-radius-micro: var(--glz11-radius-micro, 8px);
+  --glz13-radius-control: var(--glz11-radius-control, 16px);
+  --glz13-radius-container: var(--glz11-radius-container, 24px);
+  --glz13-radius-hero: var(--glz11-radius-hero, 32px);
+}
+
+html[data-glaze-target-version="1.3"][data-glz-appearance="dark"] {
+  --glz13-base-glass: rgba(25, 25, 27, 0.62);
+  --glz13-raised-glass: rgba(38, 38, 41, 0.72);
+  --glz13-overlay-glass: rgba(42, 42, 45, 0.82);
+  --glz13-panel-glass: rgba(34, 34, 37, 0.76);
+  --glz13-specular-border: rgba(255, 255, 255, 0.12);
+  --glz13-structural-border: rgba(255, 255, 255, 0.10);
+  --glaze-surface-solid: #1b2228;
+  --glaze-surface-strong: #1b2228;
+  --glaze-text: var(--glz13-crystal-white);
+  --glaze-muted: #b8c2ca;
+  --glaze-subtle: #96a4ae;
+}
+
+html[data-glaze-target-version="1.3"][data-glz-appearance="deep-dark"] {
+  --glz13-base-glass: rgba(14, 14, 16, 0.72);
+  --glz13-raised-glass: rgba(22, 22, 25, 0.78);
+  --glz13-overlay-glass: rgba(24, 24, 27, 0.86);
+  --glz13-panel-glass: rgba(18, 18, 21, 0.82);
+  --glz13-specular-border: rgba(255, 255, 255, 0.11);
+  --glz13-structural-border: rgba(255, 255, 255, 0.09);
+  --glaze-surface-solid: var(--glz13-deep-graphite);
+  --glaze-surface-strong: var(--glz13-deep-graphite);
+  --glaze-text: var(--glz13-crystal-white);
+  --glaze-muted: #aeb9c2;
+  --glaze-subtle: #8f9da8;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-glaze-target-version="1.3"]:not([data-glz-appearance]) {
+    --glz13-base-glass: rgba(25, 25, 27, 0.62);
+    --glz13-raised-glass: rgba(38, 38, 41, 0.72);
+    --glz13-panel-glass: rgba(34, 34, 37, 0.76);
+    --glz13-structural-border: rgba(255, 255, 255, 0.10);
+    --glaze-surface-solid: #1b2228;
+    --glaze-surface-strong: #1b2228;
+    --glaze-text: var(--glz13-crystal-white);
+    --glaze-muted: #b8c2ca;
+    --glaze-subtle: #96a4ae;
+  }
+}
+
+/* Resilience precedence: remove material expression before reducing meaning or access. */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-glaze-target-version="1.3"] {
+    --glaze-surface: var(--glaze-surface-solid);
+    --glz13-panel-glass: var(--glaze-surface-solid);
+    --glz13-base-glass: var(--glaze-surface-solid);
+    --glaze-blur: 0px;
+  }
+}
+
+@media (prefers-contrast: more) {
+  html[data-glaze-target-version="1.3"] {
+    --glaze-border: color-mix(in srgb, currentColor 42%, transparent);
+    --glaze-border-strong: color-mix(in srgb, currentColor 62%, transparent);
+  }
+}
+
+@media (forced-colors: active) {
+  html[data-glaze-target-version="1.3"] {
+    --glaze-surface: Canvas;
+    --glaze-surface-solid: Canvas;
+    --glaze-surface-muted: Canvas;
+    --glaze-surface-strong: Canvas;
+    --glaze-text: CanvasText;
+    --glaze-muted: CanvasText;
+    --glaze-subtle: CanvasText;
+    --glaze-border: CanvasText;
+    --glaze-border-strong: CanvasText;
+    --glaze-accent: LinkText;
+    --glaze-accent-strong: LinkText;
+    --glaze-accent-soft: Canvas;
+    --glaze-focus: Highlight;
+    --glaze-shadow-sm: none;
+    --glaze-shadow-md: none;
+    --glaze-blur: 0px;
+  }
+}
