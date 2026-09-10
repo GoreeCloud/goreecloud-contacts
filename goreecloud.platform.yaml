@@ -55,13 +55,15 @@ platform_systems:
     evidence:
       - frontend/index.html
       - frontend/src/glaze-v1.1.css
+      - frontend/src/glaze-v1.3-foundation.css
       - frontend/src/glaze-accessibility.css
       - frontend/src/glaze-form-factors.css
       - frontend/src/glaze-form-factor-refinements.css
       - frontend/scripts/validate-glaze-ui.mjs
+      - frontend/scripts/validate-glaze-v1.3-foundation.mjs
       - frontend/scripts/validate-form-factors.mjs
       - docs/glaze-ui-v1.1-migration.md
-    notes: The active Contacts source migration remains GLAZE UI V1.1 / 1.1.0. The current required GoreeCloud consumer target is GLAZE UI V1.3 / 1.3.0 Adaptive Resonance, released as the current Official/Stable/consumer-eligible shared target on 2026-09-08. Contacts must migrate deliberately and repeat application-specific source, rendered, accessibility, supported-form-factor, representative-device/browser, rollback, release, and production acceptance before Glaze conformance may advance.
+    notes: The active Contacts runtime/source mapping remains GLAZE UI V1.1 / 1.1.0. A bounded, non-activating V1.3 / 1.3.0 Adaptive Resonance foundation is staged at exact Stable integration anchor fc7cc91d2eace8da2371371c2855c24cbcb326a1 behind a target-only selector, and CI is required to fail if this tranche silently switches the live document root to V1.3. The current required GoreeCloud consumer target remains V1.3 / 1.3.0. Contacts must complete a deliberate root/source migration and repeat application-specific rendered, interaction, accessibility, supported-form-factor, representative-device/browser, performance, rollback, release, and production acceptance before Glaze conformance may advance.
   mesh:
     result: applicable-blocked
     version: null
@@ -125,7 +127,7 @@ conformance:
   validated_at: null
   evidence: []
   blockers:
-    - Active Contacts source remains on the GLAZE UI 1.1.0 migration and requires deliberate migration to current Stable 1.3.0 plus fresh application-specific acceptance.
+    - Active Contacts runtime/source mapping remains GLAZE UI 1.1.0; a non-activating V1.3 foundation is staged, but deliberate V1.3 root migration and fresh application-specific acceptance remain incomplete.
     - GoreeCloud Manager integration and acceptance remain blocked.
     - Privacy Shield integration and application acceptance remain blocked.
     - Wardveil Security integration and application acceptance remain blocked.
