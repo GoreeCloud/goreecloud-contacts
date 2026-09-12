@@ -4,13 +4,13 @@ GoreeCloud Contacts is my private, self-hosted personal and family contact-manag
 
 ## Project Status
 
-**Status:** Active development — Milestone 4 Phase 4B VCF import/export implementation and validation
+**Status:** Active development — Milestone 4 Phase 4C duplicate detection and user-reviewed merge implementation; isolated live validation pending
 
 Milestones 1 and 2 provide Radicale address-book discovery, contact listing and search, and guarded create, update, and delete operations with ETag-based conflict protection.
 
 Milestone 3 adds per-user Radicale authentication, opaque server-side sessions, strict application-level address-book isolation, logout/session-expiration behavior, and live negative two-user authorization validation.
 
-Milestone 4 Phase 4A expands the contact model with structured names, organization/title, addresses, birthdays, websites, notes, categories, favorites, HTTP(S) photo-reference awareness, full contact-detail retrieval, and expanded browser workflows. Automated validation, isolated live read/detail validation, the full synthetic create/detail/update/stale-ETag/delete sequence, and browser create/favorite/edit/unfavorite/delete validation have passed. The local write safety gate was restored to `CARDDAV_WRITE_ENABLED=false` after validation. A browser error-presentation defect discovered during validation was corrected so structured FastAPI validation details are rendered as readable messages instead of `[object Object]`. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
+Milestone 4 Phase 4A expands the contact model with structured names, organization/title, addresses, birthdays, websites, notes, categories, favorites, HTTP(S) photo-reference awareness, full contact-detail retrieval, and expanded browser workflows. Phase 4B adds raw VCF import/export and validated portability through Radicale. Both phases are merged to `main`. Phase 4C is implementing read-only duplicate suggestions plus an explicit, ETag-protected, user-reviewed merge workflow. Development and validation continue to use isolated non-production identities and synthetic contact data; production family contact data is not yet approved for use.
 
 ## Role
 
@@ -76,7 +76,8 @@ goreecloud-contacts/
 │   ├── milestone-2-carddav-writes.md
 │   ├── milestone-3-authentication-isolation.md
 │   ├── milestone-4-expanded-contact-model.md
-│   └── milestone-4-vcf-import-export.md
+│   ├── milestone-4-vcf-import-export.md
+│   └── milestone-4-duplicate-detection-merge.md
 ├── .github/workflows/ci.yml
 ├── .env.example
 ├── .gitignore
@@ -128,7 +129,7 @@ goreecloud-contacts/
 
 ### Milestone 4 — Expanded Contact Model and Product Workflows — In Progress
 
-#### Phase 4A — Expanded Contact Model
+#### Phase 4A — Expanded Contact Model — Complete
 
 - Added structured names, organizations, titles, postal addresses, birthdays, websites, notes, categories, favorites, and HTTP(S) photo-reference awareness where supported.
 - Added a full authenticated contact-detail endpoint while preserving per-user CardDAV authorization.
@@ -142,24 +143,30 @@ goreecloud-contacts/
 - Corrected structured API validation-error presentation after browser validation exposed `[object Object]` for FastAPI/Pydantic detail arrays.
 - Final exact-head CI passed and Phase 4A was squash-merged to `main` as `1e2675390e06e9485bf664b53b0552c2e4575cd4`.
 
-#### Phase 4B — VCF Import and Export
+#### Phase 4B — VCF Import and Export — Complete
 
 - Implemented single-contact and full address-book VCF export using raw CardDAV vCard data.
 - Implemented VCF 3.0/4.0 import preview and validation before any mutation.
 - Required explicit destination address-book selection and selected preview records.
 - Preserved unknown source properties where possible and generated a UID only when missing.
 - Kept actual import behind `CARDDAV_WRITE_ENABLED` and created new resources with `If-None-Match: *`.
-- Passed 27 backend tests, frontend lint, frontend production build, and implementation-head GitHub Actions CI.
+- Passed 27 backend tests, frontend lint, frontend production build, implementation-head CI, isolated live acceptance, and final exact-head CI.
 - Passed isolated read-only export/preview, unsupported-version rejection, malformed-input rejection, controlled synthetic import, raw VCF round-trip preservation, and cleanup validation.
 - Confirmed the tested unknown `X-GOREECLOUD-TEST` property and source UID survived import through Radicale and subsequent raw export.
 - Restored `CARDDAV_WRITE_ENABLED=false` and `SESSION_TTL_SECONDS=28800` after controlled validation and confirmed Jordan Example remained the only retained test contact.
-- Final exact-head CI remains required after this validation-documentation update before merge.
+- Phase 4B was squash-merged to `main` as `eead31afb86894fcf5ed44c32ba7cbd8c5fa30a0`.
 
-#### Phase 4C — Duplicate Detection and Merge
+#### Phase 4C — Duplicate Detection and Merge — In Progress
 
-- Add duplicate candidate detection using normalized names, emails, and telephone numbers.
-- Add user-reviewed merge previews and ETag-protected merge writes.
-- Delete superseded resources only after a merged resource is confirmed written successfully.
+- Added read-only duplicate-candidate detection using exact UID plus normalized names, emails, and telephone numbers, with organization/title as supporting signals.
+- Added confidence/score presentation as a review aid without automatic identity decisions or automatic merges.
+- Added user-reviewed merge previews, survivor selection, primary/duplicate value choices for scalar conflicts, and multi-value field unions.
+- Added raw passthrough-property preservation from both source vCards where possible while retaining the chosen survivor UID.
+- Added write-gated, dual-ETag validation before mutation, conditional survivor update, and conditional duplicate deletion only after the survivor is confirmed written.
+- Added partial-failure handling that prefers duplicate retention over possible information loss when duplicate deletion cannot be confirmed.
+- Added the responsive Phase 4C browser review panel without automatically loading external photo URLs.
+- Backend automated validation currently passes 34 tests with the two existing nonblocking warnings; frontend lint and production build pass.
+- Isolated read-only and controlled synthetic live acceptance remain required before Phase 4C can be completed or merged.
 
 #### Phase 4D — Product and Glaze UI Refinement
 

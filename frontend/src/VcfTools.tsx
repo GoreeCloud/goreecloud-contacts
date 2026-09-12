@@ -1,6 +1,7 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 
 import type { ContactSummary } from './api.ts'
+import DuplicateTools from './DuplicateTools.tsx'
 import {
   exportAddressBookVcf,
   exportContactVcf,
@@ -193,145 +194,154 @@ export default function VcfTools({
   }
 
   return (
-    <section className="vcf-tools" aria-label="VCF import and export">
-      <div className="vcf-tools-heading">
-        <div>
-          <p className="eyebrow">Portable contacts · Phase 4B</p>
-          <h3>VCF import and export</h3>
-          <p className="muted">
-            Export stays available in read-only mode. Import requires an explicit preview,
-            destination address book, selected records, and the CardDAV write safety gate.
-          </p>
-        </div>
-        <span className="vcf-destination">{selectedBookName}</span>
-      </div>
-
-      {error ? <div className="inline-error" role="alert">{error}</div> : null}
-      {message ? <div className="vcf-success" role="status">{message}</div> : null}
-
-      <div className="vcf-tools-grid">
-        <div className="vcf-tool-panel">
-          <h4>Export</h4>
-          <p className="muted">
-            Download the selected address book or one contact as standards-based VCF.
-          </p>
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={busy}
-            onClick={() => void runExportAddressBook()}
-          >
-            Export address book
-          </button>
-
-          <label>
-            Single contact
-            <select
-              value={exportHref}
-              onChange={(event) => setExportHref(event.target.value)}
-            >
-              <option value="">Choose a contact…</option>
-              {contacts.map((contact) => (
-                <option key={contact.href} value={contact.href}>
-                  {contact.formatted_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={busy || !exportHref}
-            onClick={() => void runExportContact()}
-          >
-            Export selected contact
-          </button>
+    <>
+      <section className="vcf-tools" aria-label="VCF import and export">
+        <div className="vcf-tools-heading">
+          <div>
+            <p className="eyebrow">Portable contacts · Phase 4B</p>
+            <h3>VCF import and export</h3>
+            <p className="muted">
+              Export stays available in read-only mode. Import requires an explicit preview,
+              destination address book, selected records, and the CardDAV write safety gate.
+            </p>
+          </div>
+          <span className="vcf-destination">{selectedBookName}</span>
         </div>
 
-        <div className="vcf-tool-panel">
-          <h4>Import</h4>
-          <p className="muted">
-            Choose a VCF file up to 5 MB. Previewing never writes to CardDAV.
-          </p>
-          <label>
-            VCF file
-            <input
-              type="file"
-              accept=".vcf,text/vcard,text/x-vcard"
-              onChange={(event) => void readFile(event)}
-            />
-          </label>
-          {fileName ? <p className="vcf-file-name">{fileName}</p> : null}
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={busy || !vcfText}
-            onClick={() => void runPreview()}
-          >
-            Preview VCF
-          </button>
-        </div>
-      </div>
+        {error ? <div className="inline-error" role="alert">{error}</div> : null}
+        {message ? <div className="vcf-success" role="status">{message}</div> : null}
 
-      {preview ? (
-        <div className="vcf-preview">
-          <div className="vcf-preview-heading">
-            <div>
-              <h4>Import preview</h4>
-              <p className="muted">
-                Valid records are selected by default. Invalid records cannot be imported.
-              </p>
-            </div>
+        <div className="vcf-tools-grid">
+          <div className="vcf-tool-panel">
+            <h4>Export</h4>
+            <p className="muted">
+              Download the selected address book or one contact as standards-based VCF.
+            </p>
             <button
               type="button"
-              className="primary-button"
-              disabled={busy || !writeEnabled || selectedIndices.length === 0}
-              onClick={() => void runImport()}
+              className="secondary-button"
+              disabled={busy}
+              onClick={() => void runExportAddressBook()}
             >
-              {busy ? 'Working…' : `Import selected (${selectedIndices.length})`}
+              Export address book
+            </button>
+
+            <label>
+              Single contact
+              <select
+                value={exportHref}
+                onChange={(event) => setExportHref(event.target.value)}
+              >
+                <option value="">Choose a contact…</option>
+                {contacts.map((contact) => (
+                  <option key={contact.href} value={contact.href}>
+                    {contact.formatted_name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={busy || !exportHref}
+              onClick={() => void runExportContact()}
+            >
+              Export selected contact
             </button>
           </div>
 
-          {!writeEnabled ? (
-            <p className="privacy-note">
-              Import remains disabled while the write safety gate is active.
+          <div className="vcf-tool-panel">
+            <h4>Import</h4>
+            <p className="muted">
+              Choose a VCF file up to 5 MB. Previewing never writes to CardDAV.
             </p>
-          ) : null}
-
-          <div className="vcf-preview-list">
-            {preview.items.map((item) => (
-              <article
-                key={item.index}
-                className={`vcf-preview-item ${item.valid ? '' : 'invalid'}`}
-              >
-                <label className="vcf-select">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(item.index)}
-                    disabled={!item.valid || busy}
-                    onChange={() => toggleSelection(item.index)}
-                  />
-                  <span>Record {item.index + 1}</span>
-                </label>
-                <div className="vcf-preview-copy">
-                  <strong>{item.formatted_name ?? 'Invalid vCard'}</strong>
-                  <small>
-                    {[item.version ? `vCard ${item.version}` : '', item.emails[0] ?? '']
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </small>
-                  {item.warnings.map((warning) => (
-                    <p className="vcf-warning" key={warning}>{warning}</p>
-                  ))}
-                  {item.errors.map((itemError) => (
-                    <p className="vcf-error" key={itemError}>{itemError}</p>
-                  ))}
-                </div>
-              </article>
-            ))}
+            <label>
+              VCF file
+              <input
+                type="file"
+                accept=".vcf,text/vcard,text/x-vcard"
+                onChange={(event) => void readFile(event)}
+              />
+            </label>
+            {fileName ? <p className="vcf-file-name">{fileName}</p> : null}
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={busy || !vcfText}
+              onClick={() => void runPreview()}
+            >
+              Preview VCF
+            </button>
           </div>
         </div>
-      ) : null}
-    </section>
+
+        {preview ? (
+          <div className="vcf-preview">
+            <div className="vcf-preview-heading">
+              <div>
+                <h4>Import preview</h4>
+                <p className="muted">
+                  Valid records are selected by default. Invalid records cannot be imported.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={busy || !writeEnabled || selectedIndices.length === 0}
+                onClick={() => void runImport()}
+              >
+                {busy ? 'Working…' : `Import selected (${selectedIndices.length})`}
+              </button>
+            </div>
+
+            {!writeEnabled ? (
+              <p className="privacy-note">
+                Import remains disabled while the write safety gate is active.
+              </p>
+            ) : null}
+
+            <div className="vcf-preview-list">
+              {preview.items.map((item) => (
+                <article
+                  key={item.index}
+                  className={`vcf-preview-item ${item.valid ? '' : 'invalid'}`}
+                >
+                  <label className="vcf-select">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(item.index)}
+                      disabled={!item.valid || busy}
+                      onChange={() => toggleSelection(item.index)}
+                    />
+                    <span>Record {item.index + 1}</span>
+                  </label>
+                  <div className="vcf-preview-copy">
+                    <strong>{item.formatted_name ?? 'Invalid vCard'}</strong>
+                    <small>
+                      {[item.version ? `vCard ${item.version}` : '', item.emails[0] ?? '']
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </small>
+                    {item.warnings.map((warning) => (
+                      <p className="vcf-warning" key={warning}>{warning}</p>
+                    ))}
+                    {item.errors.map((itemError) => (
+                      <p className="vcf-error" key={itemError}>{itemError}</p>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      <DuplicateTools
+        selectedBookHref={selectedBookHref}
+        selectedBookName={selectedBookName}
+        writeEnabled={writeEnabled}
+        onMerged={onImported}
+      />
+    </>
   )
 }

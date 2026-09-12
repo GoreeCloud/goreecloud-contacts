@@ -41,6 +41,7 @@ jobs:
           python -m py_compile
           scripts/validate_milestone3_live.py
           scripts/validate_milestone4_live.py
+          scripts/validate_milestone4_phase4c_live.py
 
       - name: Run backend tests
         run: pytest -q
