@@ -1,0 +1,88 @@
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  padding: 10px 14px;
+  border: 1px solid var(--glaze-border-strong);
+  border-radius: 12px;
+  background: var(--glaze-surface-solid);
+  color: var(--glaze-text);
+  box-shadow: var(--glaze-shadow-md);
+  font-weight: 750;
+  text-decoration: none;
+  transform: translateY(calc(-100% - 24px));
+  transition: transform 140ms ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+@media (prefers-contrast: more) {
+  .skip-link {
+    border-width: 2px;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+@media (forced-colors: active) {
+  .skip-link {
+    border: 2px solid ButtonText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  .topbar,
+  .sidebar,
+  .table-card,
+  .login-card,
+  .editor-card,
+  .detail-card,
+  .vcf-tools,
+  .duplicate-tools,
+  .notice,
+  .address-editor {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .danger-button,
+  .row-action,
+  .text-button,
+  .create-button,
+  .nav-item,
+  .book-button {
+    border: 1px solid ButtonText;
+    forced-color-adjust: auto;
+  }
+
+  .status-dot {
+    border: 1px solid CanvasText;
+    background: GrayText;
+    forced-color-adjust: none;
+  }
+
+  .status-dot.online {
+    background: Highlight;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}

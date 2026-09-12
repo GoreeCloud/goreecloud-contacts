@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint src vite.config.ts",
+    "validate:ui": "node scripts/validate-glaze-ui.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

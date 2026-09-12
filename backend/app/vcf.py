@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from .models import ContactDetail
 from .vcard import parse_vcard
+from .vcf_models import MAX_VCF_RECORDS
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +60,10 @@ def split_vcards(raw: str) -> list[str]:
 
         current.append(line)
         if marker == "END:VCARD":
+            if len(records) >= MAX_VCF_RECORDS:
+                raise ValueError(
+                    f"VCF files may contain at most {MAX_VCF_RECORDS} vCard records."
+                )
             records.append("\r\n".join(current) + "\r\n")
             current = None
 

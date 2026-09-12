@@ -1,0 +1,50 @@
+services:
+  goreecloud-contacts:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: goreecloud/contacts:${GOREECLOUD_CONTACTS_IMAGE_TAG:-local}
+    container_name: goreecloud-contacts
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ../.env
+    extra_hosts:
+      - "${GOREECLOUD_CONTACTS_CARDDAV_HOST:?Set GOREECLOUD_CONTACTS_CARDDAV_HOST to the approved CardDAV hostname}=${GOREECLOUD_CONTACTS_CADDY_IP:?Set GOREECLOUD_CONTACTS_CADDY_IP to the approved Caddy address on the proxy network}"
+    environment:
+      APP_ENV: production
+      FRONTEND_ORIGIN: https://contacts.goreecloud.com
+      SESSION_COOKIE_SECURE: "true"
+      CSRF_ORIGIN_CHECK_ENABLED: "true"
+      SESSION_STORE_BACKEND: sqlite
+      SESSION_DB_PATH: /data/sessions.sqlite3
+      SESSION_ENCRYPTION_KEYS_FILE: /run/secrets/session-encryption-keys
+      DUPLICATE_MERGE_ENABLED: "false"
+    secrets:
+      - source: session_encryption_keys
+        target: session-encryption-keys
+    volumes:
+      - type: bind
+        source: ${GOREECLOUD_CONTACTS_DATA_PATH:-/srv/docker/appdata/goreecloud-contacts}
+        target: /data
+    networks:
+      proxy:
+        ipv4_address: ${GOREECLOUD_CONTACTS_PROXY_IP:?Set GOREECLOUD_CONTACTS_PROXY_IP to an approved free address on the proxy network}
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    user: "10001:10001"
+    pids_limit: 256
+    stop_grace_period: 20s
+
+networks:
+  proxy:
+    external: true
+
+secrets:
+  session_encryption_keys:
+    file: ${GOREECLOUD_CONTACTS_SESSION_SECRET_PATH:-/srv/docker/secrets/goreecloud-contacts/session-encryption-keys}

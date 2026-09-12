@@ -1,7 +1,10 @@
 from pydantic import BaseModel, Field
 
+from .models import MAX_RESOURCE_HREF_CHARS
+
 
 MAX_VCF_IMPORT_CHARS = 5_000_000
+MAX_VCF_RECORDS = 5_000
 
 
 class VcfImportPreviewRequest(BaseModel):
@@ -28,9 +31,12 @@ class VcfImportPreviewResponse(BaseModel):
 
 
 class VcfImportRequest(BaseModel):
-    address_book_href: str = Field(min_length=1, max_length=4096)
+    address_book_href: str = Field(
+        min_length=1,
+        max_length=MAX_RESOURCE_HREF_CHARS,
+    )
     vcf_text: str = Field(min_length=1, max_length=MAX_VCF_IMPORT_CHARS)
-    selected_indices: list[int] | None = Field(default=None, max_length=5000)
+    selected_indices: list[int] | None = Field(default=None, max_length=MAX_VCF_RECORDS)
 
 
 class VcfImportResultItem(BaseModel):

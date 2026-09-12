@@ -145,6 +145,7 @@ async function requestJson<T>(
 ): Promise<T> {
   const response = await fetch(path, {
     ...init,
+    cache: 'no-store',
     credentials: 'include',
     headers: {
       Accept: 'application/json',

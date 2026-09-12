@@ -15,9 +15,15 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend tests
+    name: Backend tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.13"
     defaults:
       run:
         working-directory: backend
@@ -26,21 +32,48 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Set up Python 3.10
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python-version }}
           cache: pip
-          cache-dependency-path: backend/pyproject.toml
+          cache-dependency-path: |
+            backend/pyproject.toml
+            backend/requirements.runtime.lock
 
       - name: Install backend dependencies
-        run: python -m pip install -e ".[test]"
+        run: >-
+          python -m pip install
+          -e ".[test]"
+          pip-audit==2.10.1
+
+      - name: Audit backend project dependencies
+        if: matrix.python-version == '3.13'
+        # Temporary, scope-limited exception:
+        # PYSEC-2026-3552 affects cryptography PKCS#7 EnvelopedData decryption APIs.
+        # GoreeCloud Contacts uses Fernet/MultiFernet only, and an automated source
+        # guard rejects use/import of the affected PKCS#7 decrypt surface. Remove
+        # this exception and upgrade cryptography when a fixed stable release is
+        # available.
+        run: >-
+          python -m pip_audit .
+          --progress-spinner off
+          --ignore-vuln PYSEC-2026-3552
+
+      - name: Audit locked production dependencies
+        if: matrix.python-version == '3.13'
+        run: >-
+          python -m pip_audit
+          -r requirements.runtime.lock
+          --progress-spinner off
+          --ignore-vuln PYSEC-2026-3552
 
       - name: Validate live helper syntax
         run: >-
           python -m py_compile
           scripts/validate_milestone3_live.py
           scripts/validate_milestone4_live.py
+          scripts/validate_milestone4_phase4c_live.py
 
       - name: Run backend tests
         run: pytest -q
@@ -67,8 +100,107 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Audit frontend dependencies
+        run: npm audit
+
+      - name: Validate Glaze UI requirements
+        run: npm run validate:ui
+
       - name: Lint frontend
         run: npm run lint
 
       - name: Build frontend
         run: npm run build
+
+  runtime:
+    name: Production image smoke test
+    needs:
+      - backend
+      - frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate production Compose definition
+        run: |
+          cp .env.example .env
+          COMPOSE_SECRET="$RUNNER_TEMP/goreecloud-contacts-compose-secret"
+          printf '%s\n' 'synthetic-compose-secret-placeholder' > "$COMPOSE_SECRET"
+          GOREECLOUD_CONTACTS_SESSION_SECRET_PATH="$COMPOSE_SECRET" \
+          GOREECLOUD_CONTACTS_PROXY_IP=172.19.0.51 \
+          GOREECLOUD_CONTACTS_CARDDAV_HOST=dav.goreecloud.com \
+          GOREECLOUD_CONTACTS_CADDY_IP=172.19.0.2 \
+            docker compose -f docker/compose.production.yml config > "$RUNNER_TEMP/contacts-compose.yml"
+          grep -F 'ipv4_address: 172.19.0.51' "$RUNNER_TEMP/contacts-compose.yml"
+          grep -F 'dav.goreecloud.com' "$RUNNER_TEMP/contacts-compose.yml"
+          grep -F '172.19.0.2' "$RUNNER_TEMP/contacts-compose.yml"
+          rm .env "$COMPOSE_SECRET" "$RUNNER_TEMP/contacts-compose.yml"
+
+      - name: Build production image
+        run: docker build -f docker/Dockerfile -t goreecloud-contacts:ci .
+
+      - name: Verify production image contract
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' goreecloud-contacts:ci)" = "10001:10001"
+          docker run --rm --entrypoint python goreecloud-contacts:ci -m pip check
+
+      - name: Start hardened production-shaped container
+        run: |
+          SESSION_SECRET="$RUNNER_TEMP/goreecloud-contacts-session-encryption-keys"
+          docker run --rm --entrypoint python goreecloud-contacts:ci \
+            -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())' \
+            > "$SESSION_SECRET"
+          sudo chown 10001:10001 "$SESSION_SECRET"
+          sudo chmod 0400 "$SESSION_SECRET"
+
+          docker run -d \
+            --name contacts-runtime \
+            --no-healthcheck \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=1777 \
+            --tmpfs /data:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700 \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --pids-limit 256 \
+            --mount type=bind,src="$SESSION_SECRET",dst=/run/secrets/session-encryption-keys,readonly \
+            -e APP_ENV=production \
+            -e FRONTEND_ORIGIN=https://contacts.goreecloud.com \
+            -e CARDDAV_BASE_URL=https://carddav.invalid.example \
+            -e CARDDAV_WRITE_ENABLED=false \
+            -e DUPLICATE_MERGE_ENABLED=false \
+            -e SESSION_COOKIE_SECURE=true \
+            -e SESSION_STORE_BACKEND=sqlite \
+            -e SESSION_DB_PATH=/data/sessions.sqlite3 \
+            -e SESSION_ENCRYPTION_KEYS_FILE=/run/secrets/session-encryption-keys \
+            -e CSRF_ORIGIN_CHECK_ENABLED=true \
+            -p 127.0.0.1:18080:8000 \
+            goreecloud-contacts:ci
+
+      - name: Smoke-test same-origin production surface
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/api/health/live >/tmp/contacts-live.json; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "Production runtime did not become live." >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          grep -F '"environment":"production"' /tmp/contacts-live.json
+          curl --fail --silent --show-error http://127.0.0.1:18080/ | grep -F '<title>GoreeCloud Contacts</title>'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/docs)" = "404"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18080/openapi.json)" = "404"
+          test "$(docker exec contacts-runtime id -u)" = "10001"
+          test "$(docker exec contacts-runtime id -g)" = "10001"
+          ! docker exec contacts-runtime env | grep -q '^SESSION_ENCRYPTION_KEYS='
+          test "$(docker exec contacts-runtime sh -c 'stat -c %a /run/secrets/session-encryption-keys')" = "400"
+
+      - name: Show runtime logs
+        if: always()
+        run: docker logs contacts-runtime 2>&1 || true
